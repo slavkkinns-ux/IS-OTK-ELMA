@@ -13,7 +13,9 @@ def run_app():
         if Session.is_authenticated():
             window = MainWindow(app)
             window.show()
-
+            
+            app.exec()
+            
             if not Session.is_authenticated():
                 continue
             else:
@@ -23,7 +25,7 @@ def run_app():
             if login.exec() == QDialog.DialogCode.Accepted:
                 continue
             else:
-                return sys.exit(0)
+                sys.exit(0)
 
 if __name__ == "__main__":
     run_app()

@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         self.ui.btnResearch.clicked.connect(lambda: self.show_page(self.ui.pageResearch))
         self.ui.btnReports.clicked.connect(lambda: self.show_page(self.ui.pageReports))
 
-    def logout(self, page):
+    def logout(self):
         Session.clear()
         self.close()
 
