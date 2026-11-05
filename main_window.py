@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QMainWindow, QButtonGroup
+from PyQt6.QtWidgets import QMainWindow, QButtonGroup, QHeaderView
 from ui.main_window_ui import Ui_MainWindow
 from session import Session
 
@@ -17,11 +17,55 @@ class MainWindow(QMainWindow):
             return
 
         self._setup_sidebar()
+        self._setup_tables()
         self._setup_home_tab()
         self._setup_orders_tab()
         self._setup_clients_tab()
         self._setup_research_tab()
         self._setup_reports_tab()
+
+    def _setup_tables(self):
+        self.ui.tableRecentOrders.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableRecentOrders.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableRecentOrders.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableRecentOrders.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableRecentOrders.horizontalHeader().setStretchLastSection(True)
+
+        self.ui.tableOrders.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableOrders.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableOrders.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableOrders.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableOrders.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableOrders.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableOrders.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+
+        self.ui.tableClients.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableClients.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableClients.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableClients.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableClients.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+
+        self.ui.tableResearchQueue.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableResearchQueue.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableResearchQueue.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableResearchQueue.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableResearchQueue.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+
+        self.ui.tableReportResearch.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.ui.tableReportResearch.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableReportResearch.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+
+        self.ui.tableRecentReports.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableRecentReports.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableRecentReports.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableRecentReports.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+
+        for table in [
+            self.ui.tableRecentOrders, self.ui.tableOrders, self.ui.tableClients,
+            self.ui.tableResearchQueue, self.ui.tableReportResearch, self.ui.tableRecentReports
+        ]:
+            table.horizontalHeader().setStretchLastSection(True)
+            table.verticalHeader().setVisible(False)
 
     def _on_nav_clicked(self, button):
         pages = {
