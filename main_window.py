@@ -17,12 +17,77 @@ class MainWindow(QMainWindow):
             return
 
         self._setup_sidebar()
+        self._apply_role_permissions()
         self._setup_tables()
         self._setup_home_tab()
         self._setup_orders_tab()
         self._setup_clients_tab()
         self._setup_research_tab()
         self._setup_reports_tab()
+
+    def _setup_sidebar(self):
+            sidebar_style = self.ui.sidebarFrame.styleSheet()
+            if "QPushButton:checked" not in sidebar_style:
+                sidebar_style += """
+                QPushButton:checked {
+                    background-color: #154360;
+                    border-left: 4px solid #3498db;
+                    padding-left: 10px;
+                }
+                """
+                self.ui.sidebarFrame.setStyleSheet(sidebar_style)
+    
+            self.nav_group = QButtonGroup(self)
+            nav_buttons = [
+                self.ui.btnHome, self.ui.btnOrders, self.ui.btnClients, 
+                self.ui.btnResearch, self.ui.btnReports
+            ]
+            
+            for btn in nav_buttons:
+                self.nav_group.addButton(btn)
+                btn.setCheckable(True)
+            
+            self.ui.btnHome.setChecked(True)
+            self.nav_group.buttonClicked.connect(self._on_nav_clicked)
+            self.ui.btnExit.clicked.connect(self.logout)
+
+    def _apply_role_permissions(self):
+        self.ui.lblCurrentRole.setText(Session.get_role_display_name())
+        self.ui.lblUsername.setText(Session.get_display_name())
+
+        self.ui.btnOrders.setVisible(Session.has_permission("can_view_orders"))
+        self.ui.btnResearch.setVisible(Session.has_permission("can_do_research"))
+        self.ui.btnReports.setVisible(Session.has_permission("can_view_reports"))
+
+        self.ui.btnAddOrder.setVisible(Session.has_permission("can_create_order"))
+        self.ui.btnEditOrder.setVisible(Session.has_permission("can_view_orders"))
+        self.ui.btnViewOrder.setVisible(Session.has_permission("can_view_orders"))
+
+        self.ui.btnAddClient.setVisible(Session.has_permission("can_create_order"))
+        self.ui.btnEditClient.setVisible(Session.has_permission("can_view_orders"))
+        self.ui.btnViewClient.setVisible(Session.has_permission("can_view_orders"))
+
+        self.ui.btnSaveResearchResult.setVisible(Session.has_permission("can_do_research"))
+        self.ui.btnClearResearchResult.setVisible(Session.has_permission("can_do_research"))
+        self.ui.btnViewResearchResult.setVisible(Session.has_permission("can_do_research"))
+
+        self.ui.btnCreateReport.setVisible(Session.has_permission("can_create_reports"))
+        self.ui.btnOpenReport.setVisible(Session.has_permission("can_view_reports"))
+        self.ui.btnPrintReport.setVisible(Session.has_permission("can_view_reports"))
+
+        current = self.ui.stackedWidget.currentWidget()
+        visible_pages = [self.ui.pageHome]
+        if Session.has_permission("can_view_orders"):
+            visible_pages.append(self.ui.pageOrders)
+            visible_pages.append(self.ui.pageClients)
+        if Session.has_permission("can_do_research"):
+            visible_pages.append(self.ui.pageResearch)
+        if Session.has_permission("can_view_reports"):
+            visible_pages.append(self.ui.pageReports)
+
+        if current not in visible_pages:
+            self.ui.stackedWidget.setCurrentWidget(self.ui.pageHome)
+            self.ui.btnHome.setChecked(True)
 
     def _setup_tables(self):
         self.ui.tableRecentOrders.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -85,32 +150,6 @@ class MainWindow(QMainWindow):
 
     def show_page(self, page):
         self.ui.stackedWidget.setCurrentWidget(page)
-
-    def _setup_sidebar(self):
-        sidebar_style = self.ui.sidebarFrame.styleSheet()
-        if "QPushButton:checked" not in sidebar_style:
-            sidebar_style += """
-            QPushButton:checked {
-                background-color: #154360;
-                border-left: 4px solid #3498db;
-                padding-left: 10px;
-            }
-            """
-            self.ui.sidebarFrame.setStyleSheet(sidebar_style)
-
-        self.nav_group = QButtonGroup(self)
-        nav_buttons = [
-            self.ui.btnHome, self.ui.btnOrders, self.ui.btnClients, 
-            self.ui.btnResearch, self.ui.btnReports
-        ]
-        
-        for btn in nav_buttons:
-            self.nav_group.addButton(btn)
-            btn.setCheckable(True)
-        
-        self.ui.btnHome.setChecked(True)
-        self.nav_group.buttonClicked.connect(self._on_nav_clicked)
-        self.ui.btnExit.clicked.connect(self.logout)
 
     def _setup_home_tab(self):
         self.ui.btnAllOrders.clicked.connect(self._go_to_orders)
