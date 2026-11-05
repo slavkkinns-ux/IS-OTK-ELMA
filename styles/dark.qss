@@ -70,3 +70,9 @@ QFrame#sidebar QPushButton:hover {
 QFrame#sidebar QPushButton:checked {
     background-color: #0e639c;
 }
+
+QFrame#sidebar QPushButton:checked {
+    background-color: #0e639c;
+    color: #ffffff;
+    font-weight: bold;
+}
