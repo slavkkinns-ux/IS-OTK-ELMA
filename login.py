@@ -2,13 +2,9 @@ from PyQt6.QtWidgets import QDialog, QLineEdit
 from PyQt6.QtGui import QIcon
 from ui.login_ui import Ui_LoginDialog
 from session import Session, Role
-
-TEST_USERS = {
-    "manager": {"password": "12345", "role": Role.MANAGER, "display_name": "Анна Смирнова"},
-    "lab": {"password": "12345", "role": Role.LAB_TECHNICIAN, "display_name": "Иван Петров"},
-    "controller": {"password": "12345", "role": Role.CONTROLLER, "display_name": "Пётр Соколов"},
-    "admin": {"password": "12345", "role": Role.ADMIN, "display_name": "Администратор"},
-}
+from db import Database
+from config import DB_CONFIG
+import hashlib
 
 class LoginWindow(QDialog):
     def __init__(self):
@@ -50,13 +46,31 @@ class LoginWindow(QDialog):
             self.show_error("Введите логин и пароль")
             return
 
-        user = TEST_USERS.get(login)
-        if user and user["password"] == password:
-            Session.set_user(
-                login=login,
-                role=user["role"],
-                display_name=user["display_name"],
-            )
-            self.accept()
-        else:
-            self.show_error("Неверный логин или пароль")
+        try:
+            db = Database()
+            db.connect(**DB_CONFIG)
+            
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+            
+            query = """
+                SELECT employee_id, full_name, login, role 
+                FROM employees 
+                WHERE login = %s AND password_hash = %s AND is_active = 1
+            """
+            result = db.execute_query(query, (login, password_hash))
+            
+            if result:
+                user = result[0]
+                Session.set_user(
+                    login=user['login'],
+                    role=user['role'],
+                    display_name=user['full_name'],
+                    employee_id=user['employee_id']
+                )
+                self.accept()
+            else:
+                self.show_error("Неверный логин или пароль")
+                
+        except Exception as e:
+            self.show_error(f"Ошибка подключения к БД")
+            print(e)

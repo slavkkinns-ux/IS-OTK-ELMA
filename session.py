@@ -73,17 +73,24 @@ class Session:
         cls._load_from_file()
 
     @classmethod
-    def set_user(cls, login, role, display_name=None):
+    def set_user(cls, login, role, display_name=None, employee_id=None):
         cls._current_user = {
             "login": login,
             "role": role,
             "display_name": display_name or login.capitalize(),
+            "employee_id": employee_id
         }
         cls._save_to_file()
 
     @classmethod
     def get_user(cls):
         return cls._current_user
+
+    @classmethod
+    def get_employee_id(cls):
+        if cls._current_user:
+            return cls._current_user.get("employee_id")
+        return None
 
     @classmethod
     def get_role(cls):
