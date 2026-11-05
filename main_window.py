@@ -1,6 +1,9 @@
-from PyQt6.QtWidgets import QMainWindow, QButtonGroup, QHeaderView
+from PyQt6.QtWidgets import QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem, QMessageBox, QDialog
+from PyQt6.QtCore import Qt
+from PyQt6 import QtCore, QtGui, QtWidgets
 from ui.main_window_ui import Ui_MainWindow
-from session import Session
+from session import Session, Role
+from db import Database
 
 class MainWindow(QMainWindow):
     def __init__(self, app):
@@ -160,7 +163,39 @@ class MainWindow(QMainWindow):
         self.ui.btnSearchOrders.clicked.connect(self._search_orders)
 
     def _setup_clients_tab(self):
-        self.ui.btnAddClient.clicked.connect(self._add_client)
+        self.ui.brnRefreshClients.clicked.connect(self._load_clients_to_table)
+
+        self._load_clients_to_table()
+
+    def _load_clients_to_table(self):
+        db = Database()
+        clients = db.get_all_clients()
+        
+        self.ui.tableClients.setRowCount(0)
+        
+        if not clients:
+            return
+
+        self.ui.tableClients.setRowCount(len(clients))
+        
+        for row_idx, client in enumerate(clients):
+            item_id = QtWidgets.QTableWidgetItem(str(client['client_id']))
+            item_id.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableClients.setItem(row_idx, 0, item_id)
+            
+            item_name = QtWidgets.QTableWidgetItem(client['name'])
+            self.ui.tableClients.setItem(row_idx, 1, item_name)
+            
+            item_details = QtWidgets.QTableWidgetItem(client['details'])
+            item_details.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableClients.setItem(row_idx, 2, item_details)
+            
+            item_contact = QtWidgets.QTableWidgetItem(client['contact_person'])
+            self.ui.tableClients.setItem(row_idx, 3, item_contact)
+            
+            item_orders = QtWidgets.QTableWidgetItem("0")
+            item_orders.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableClients.setItem(row_idx, 4, item_orders)
 
     def _setup_research_tab(self):
         self.ui.btnSaveResearchResult.clicked.connect(self._save_research)

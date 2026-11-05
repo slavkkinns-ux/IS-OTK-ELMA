@@ -48,7 +48,7 @@ class LoginWindow(QDialog):
 
         try:
             db = Database()
-            db.connect(**DB_CONFIG)
+            db.connect()
             
             password_hash = hashlib.sha256(password.encode()).hexdigest()
             
