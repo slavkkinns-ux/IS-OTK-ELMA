@@ -19,8 +19,8 @@ class MainWindow(QMainWindow):
             self.close()
             return
 
-        self._setup_sidebar()
         self._apply_role_permissions()
+        self._setup_sidebar()
         self._setup_tables()
         self._setup_home_tab()
         self._setup_orders_tab()
