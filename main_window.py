@@ -165,6 +165,7 @@ class MainWindow(QMainWindow):
         self.ui.btnViewOrder.clicked.connect(self._view_order)
         self.ui.btnRefreshOrder.clicked.connect(self._load_orders_stats)
         self._load_orders_stats()
+        self._load_orders_table()
 
     def _setup_clients_tab(self):
         self.ui.brnRefreshClients.clicked.connect(self._refresh_clients_page)
@@ -303,3 +304,47 @@ class MainWindow(QMainWindow):
             item_status = QTableWidgetItem(order['status'])
             item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableRecentOrders.setItem(row_idx, 3, item_status)
+
+    def _load_orders_table(self):
+        db = Database()
+        orders = db.get_all_orders()
+        
+        self.ui.tableOrders.setRowCount(0)
+        
+        if not orders:
+            return
+
+        self.ui.tableOrders.setRowCount(len(orders))
+        
+        for row_idx, order in enumerate(orders):
+            # Колонка 0: № Заказа
+            item_vessel = QTableWidgetItem(str(order['vessel_code']))
+            self.ui.tableOrders.setItem(row_idx, 0, item_vessel)
+            
+            # Колонка 1: Клиент
+            item_client = QTableWidgetItem(order['client_name'] or '')
+            self.ui.tableOrders.setItem(row_idx, 1, item_client)
+            
+            # Колонка 2: Дата создания
+            item_date = QTableWidgetItem(order['order_date'] or '')
+            item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableOrders.setItem(row_idx, 2, item_date)
+            
+            # Колонка 3: Ответственный
+            item_employee = QTableWidgetItem(order['employee_name'] or '')
+            self.ui.tableOrders.setItem(row_idx, 3, item_employee)
+            
+            # Колонка 4: Статус
+            item_status = QTableWidgetItem(order['status'])
+            item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableOrders.setItem(row_idx, 4, item_status)
+            
+            # Колонка 5: Дата завершения (пока NULL)
+            item_completion = QTableWidgetItem('-')
+            item_completion.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableOrders.setItem(row_idx, 5, item_completion)
+            
+            # Колонка 6: Действия (пустая, пока нет кнопок)
+            item_actions = QTableWidgetItem('')
+            item_actions.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableOrders.setItem(row_idx, 6, item_actions)

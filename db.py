@@ -157,3 +157,28 @@ class Database:
         except pymysql.Error as e:
             print(f"Ошибка в get_recent_orders: {e}")
             return []
+
+    def get_all_orders(self):
+        query = """
+            SELECT 
+                o.order_id,
+                o.vessel_code,
+                CASE 
+                    WHEN c.client_type = 'FL' THEN i.full_name 
+                    WHEN c.client_type = 'UL' THEN l.company_name 
+                END as client_name,
+                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
+                e.full_name as employee_name,
+                o.status,
+                NULL as completion_date
+            FROM orders o
+            LEFT JOIN clients c ON o.client_id = c.client_id
+            LEFT JOIN individuals i ON c.client_id = i.client_id
+            LEFT JOIN legal_entities l ON c.client_id = l.client_id
+            LEFT JOIN employees e ON o.employee_id = e.employee_id
+            ORDER BY o.order_date DESC
+        """
+        try:
+            return self.execute_query(query)
+        except pymysql.Error:
+            return []
