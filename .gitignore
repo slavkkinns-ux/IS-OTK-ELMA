@@ -1,27 +1,21 @@
-# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 build/
 dist/
 
-# Виртуальные окружения
 venv/
 env/
 .venv/
 
-# IDE и редакторы
 .idea/
 .vscode/
 *.swp
 
-# ОС
 Thumbs.db
 .DS_Store
 
-# Локальные секреты — НЕ пушить в GitHub!
 config.py
 
-# Сгенерированные отчёты
 reports/*.pdf
 *.log
