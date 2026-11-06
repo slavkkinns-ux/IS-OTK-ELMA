@@ -157,6 +157,7 @@ class MainWindow(QMainWindow):
     def _setup_home_tab(self):
         self.ui.btnAllOrders.clicked.connect(self._go_to_orders)
         self._load_home_stats()
+        self._load_recent_orders()
 
     def _setup_orders_tab(self):
         self.ui.btnAddOrder.clicked.connect(self._add_order)
@@ -275,3 +276,30 @@ class MainWindow(QMainWindow):
         self.ui.lblcardTotalClientsValue.setText(str(stats['total_clients']))
         self.ui.lblcardActiveClientsValue.setText(str(stats['active_clients']))
         self.ui.lblcardClientsWithOrdersValue.setText(str(stats['clients_with_orders']))
+
+    def _load_recent_orders(self):
+        db = Database()
+        orders = db.get_recent_orders(limit=5)
+        
+        self.ui.tableRecentOrders.setRowCount(0)
+        
+        if not orders:
+            print("ЗАКАЗОВ НЕТ")
+            return
+
+        self.ui.tableRecentOrders.setRowCount(len(orders))
+        
+        for row_idx, order in enumerate(orders):   
+            item_vessel = QTableWidgetItem(str(order['vessel_code']))
+            self.ui.tableRecentOrders.setItem(row_idx, 0, item_vessel)
+            
+            item_client = QTableWidgetItem(order['client_name'] or '')
+            self.ui.tableRecentOrders.setItem(row_idx, 1, item_client)
+            
+            item_date = QTableWidgetItem(order['order_date'] or '')
+            item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableRecentOrders.setItem(row_idx, 2, item_date)
+            
+            item_status = QTableWidgetItem(order['status'])
+            item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableRecentOrders.setItem(row_idx, 3, item_status)
