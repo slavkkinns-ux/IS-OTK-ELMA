@@ -204,6 +204,9 @@ class MainWindow(QMainWindow):
 
     def _setup_research_tab(self):
         self.ui.btnSaveResearchResult.clicked.connect(self._save_research)
+        self.ui.btnClearResearchResult.clicked.connect(self._clear_research)
+        self.ui.btnViewResearchResult.clicked.connect(self._view_research)
+        self._load_research_queue()
 
     def _setup_reports_tab(self):
         self.ui.btnCreateReport.clicked.connect(self._create_report)
@@ -243,6 +246,12 @@ class MainWindow(QMainWindow):
         pass
 
     def _view_order(self):
+        pass
+
+    def _clear_research(self):
+        pass
+
+    def _view_research(self):
         pass
 
     def _refresh_clients_page(self):
@@ -317,34 +326,57 @@ class MainWindow(QMainWindow):
         self.ui.tableOrders.setRowCount(len(orders))
         
         for row_idx, order in enumerate(orders):
-            # Колонка 0: № Заказа
             item_vessel = QTableWidgetItem(str(order['vessel_code']))
             self.ui.tableOrders.setItem(row_idx, 0, item_vessel)
             
-            # Колонка 1: Клиент
             item_client = QTableWidgetItem(order['client_name'] or '')
             self.ui.tableOrders.setItem(row_idx, 1, item_client)
             
-            # Колонка 2: Дата создания
             item_date = QTableWidgetItem(order['order_date'] or '')
             item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableOrders.setItem(row_idx, 2, item_date)
             
-            # Колонка 3: Ответственный
             item_employee = QTableWidgetItem(order['employee_name'] or '')
             self.ui.tableOrders.setItem(row_idx, 3, item_employee)
             
-            # Колонка 4: Статус
             item_status = QTableWidgetItem(order['status'])
             item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableOrders.setItem(row_idx, 4, item_status)
             
-            # Колонка 5: Дата завершения (пока NULL)
             item_completion = QTableWidgetItem('-')
             item_completion.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableOrders.setItem(row_idx, 5, item_completion)
             
-            # Колонка 6: Действия (пустая, пока нет кнопок)
             item_actions = QTableWidgetItem('')
             item_actions.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableOrders.setItem(row_idx, 6, item_actions)
+
+    def _load_research_queue(self):
+        db = Database()
+        research = db.get_research_queue()
+        
+        self.ui.tableResearchQueue.setRowCount(0)
+        
+        if not research:
+            return
+
+        self.ui.tableResearchQueue.setRowCount(len(research))
+        
+        for row_idx, item in enumerate(research):
+            item_order = QTableWidgetItem(str(item['order_id']))
+            item_order.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableResearchQueue.setItem(row_idx, 0, item_order)
+            
+            item_vessel = QTableWidgetItem(str(item['vessel_code']))
+            self.ui.tableResearchQueue.setItem(row_idx, 1, item_vessel)
+            
+            item_service = QTableWidgetItem(item['service_name'])
+            self.ui.tableResearchQueue.setItem(row_idx, 2, item_service)
+            
+            item_client = QTableWidgetItem(item['client_name'] or '')
+            self.ui.tableResearchQueue.setItem(row_idx, 3, item_client)
+            
+            result_text = item['result_value'] if item['result_value'] else 'Не выполнено'
+            item_result = QTableWidgetItem(result_text)
+            item_result.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableResearchQueue.setItem(row_idx, 4, item_result)

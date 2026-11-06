@@ -182,3 +182,55 @@ class Database:
             return self.execute_query(query)
         except pymysql.Error:
             return []
+
+    def get_all_orders(self):
+        query = """
+            SELECT 
+                o.order_id,
+                o.vessel_code,
+                CASE 
+                    WHEN c.client_type = 'FL' THEN i.full_name 
+                    WHEN c.client_type = 'UL' THEN l.company_name 
+                END as client_name,
+                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
+                e.full_name as employee_name,
+                o.status,
+                NULL as completion_date
+            FROM orders o
+            LEFT JOIN clients c ON o.client_id = c.client_id
+            LEFT JOIN individuals i ON c.client_id = i.client_id
+            LEFT JOIN legal_entities l ON c.client_id = l.client_id
+            LEFT JOIN employees e ON o.employee_id = e.employee_id
+            ORDER BY o.order_date DESC
+        """
+        try:
+            return self.execute_query(query)
+        except pymysql.Error:
+            return []
+
+    def get_research_queue(self):
+        query = """
+            SELECT 
+                os.order_service_id,
+                o.order_id,
+                o.vessel_code,
+                s.service_name,
+                CASE 
+                    WHEN c.client_type = 'FL' THEN i.full_name 
+                    WHEN c.client_type = 'UL' THEN l.company_name 
+                END as client_name,
+                rr.result_value,
+                rr.research_id
+            FROM order_services os
+            JOIN orders o ON os.order_id = o.order_id
+            JOIN services s ON os.service_id = s.service_id
+            LEFT JOIN clients c ON o.client_id = c.client_id
+            LEFT JOIN individuals i ON c.client_id = i.client_id
+            LEFT JOIN legal_entities l ON c.client_id = l.client_id
+            LEFT JOIN research_results rr ON os.order_service_id = rr.order_service_id
+            ORDER BY o.order_date DESC
+        """
+        try:
+            return self.execute_query(query)
+        except pymysql.Error:
+            return []
