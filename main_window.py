@@ -161,7 +161,9 @@ class MainWindow(QMainWindow):
     def _setup_orders_tab(self):
         self.ui.btnAddOrder.clicked.connect(self._add_order)
         self.ui.btnEditOrder.clicked.connect(self._edit_order)
-        self.ui.btnSearchOrders.clicked.connect(self._search_orders)
+        self.ui.btnViewOrder.clicked.connect(self._view_order)
+        self.ui.btnRefreshOrder.clicked.connect(self._load_orders_stats)
+        self._load_orders_stats()
 
     def _setup_clients_tab(self):
         self.ui.brnRefreshClients.clicked.connect(self._load_clients_to_table)
@@ -238,6 +240,9 @@ class MainWindow(QMainWindow):
     def _create_report(self):
         pass
 
+    def _view_order(self):
+        pass
+
     def _load_home_stats(self):
         db = Database()
         stats = db.get_home_stats()
@@ -247,3 +252,13 @@ class MainWindow(QMainWindow):
         self.ui.lblActiveOrdersValue.setText(str(stats['active_orders']))
         self.ui.lblClientsValue.setText(str(stats['total_clients']))
         self.ui.lblPendingChecksValue.setText(str(stats['pending_checks']))
+
+    def _load_orders_stats(self):
+        db = Database()
+        stats = db.get_orders_stats()
+        if not stats:
+            return
+        self.ui.lblTotalOrdersValue.setText(str(stats['total']))
+        self.ui.lblOrdersInProgressValue.setText(str(stats['in_progress']))
+        self.ui.lblOrdersPendingValue.setText(str(stats['pending']))
+        self.ui.lblOrdersCompletedValue.setText(str(stats['completed']))

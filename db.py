@@ -107,3 +107,17 @@ class Database:
             return result[0] if result else None
         except pymysql.Error:
             return None
+
+    def get_orders_stats(self):
+        query = """
+            SELECT
+                (SELECT COUNT(*) FROM orders) AS total,
+                (SELECT COUNT(*) FROM orders WHERE status = 'В работе') AS in_progress,
+                (SELECT COUNT(*) FROM orders WHERE status = 'Ожидает контроля') AS pending,
+                (SELECT COUNT(*) FROM orders WHERE status = 'Завершён') AS completed
+        """
+        try:
+            result = self.execute_query(query)
+            return result[0] if result else None
+        except pymysql.Error:
+            return None
