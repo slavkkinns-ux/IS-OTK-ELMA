@@ -12,7 +12,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1221, 951)
+        MainWindow.resize(1100, 800)
         MainWindow.setMinimumSize(QtCore.QSize(1100, 800))
         MainWindow.setStyleSheet("QFrame#sidebarFrame {\n"
 "    background-color: #2c3e50;\n"
@@ -2034,6 +2034,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_26 = QtWidgets.QVBoxLayout(self.headerFrameReports)
         self.verticalLayout_26.setObjectName("verticalLayout_26")
         self.lblReportsTitle = QtWidgets.QLabel(parent=self.headerFrameReports)
+        self.lblReportsTitle.setMinimumSize(QtCore.QSize(0, 30))
         font = QtGui.QFont()
         font.setPointSize(20)
         font.setBold(True)
@@ -2148,7 +2149,7 @@ class Ui_MainWindow(object):
         self.reportPreviewContent.setWidgetResizable(True)
         self.reportPreviewContent.setObjectName("reportPreviewContent")
         self.scrollAreaWidgetContents = QtWidgets.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 436, 586))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 498, 586))
         self.scrollAreaWidgetContents.setObjectName("scrollAreaWidgetContents")
         self.verticalLayout_33 = QtWidgets.QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_33.setObjectName("verticalLayout_33")
@@ -2222,7 +2223,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_29.setStretch(0, 10)
         self.verticalLayout_29.setStretch(1, 1)
         self.horizontalLayout_18.addLayout(self.verticalLayout_29)
-        self.horizontalLayout_18.setStretch(0, 3)
+        self.horizontalLayout_18.setStretch(0, 4)
         self.horizontalLayout_18.setStretch(1, 7)
         self.verticalLayout_36.addWidget(self.reportWorkspaceFrame)
         self.recentReportsFrame = QtWidgets.QFrame(parent=self.pageReports)
@@ -2265,7 +2266,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralWidget)
 
         self.retranslateUi(MainWindow)
-        self.stackedWidget.setCurrentIndex(3)
+        self.stackedWidget.setCurrentIndex(4)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):

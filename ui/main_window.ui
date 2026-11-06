@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1221</width>
-    <height>951</height>
+    <width>1100</width>
+    <height>800</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -399,7 +399,7 @@ QLabel#lblSidebarTitle {
             <enum>QFrame::Raised</enum>
            </property>
            <property name="currentIndex">
-            <number>3</number>
+            <number>4</number>
            </property>
            <widget class="QWidget" name="pageHome">
             <property name="styleSheet">
@@ -3220,6 +3220,12 @@ QPushButton#btnOpenReport:hover {
                  <layout class="QVBoxLayout" name="verticalLayout_26">
                   <item>
                    <widget class="QLabel" name="lblReportsTitle">
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>30</height>
+                     </size>
+                    </property>
                     <property name="font">
                      <font>
                       <pointsize>20</pointsize>
@@ -3256,7 +3262,7 @@ QPushButton#btnOpenReport:hover {
                  <property name="frameShadow">
                   <enum>QFrame::Raised</enum>
                  </property>
-                 <layout class="QHBoxLayout" name="horizontalLayout_18" stretch="3,7">
+                 <layout class="QHBoxLayout" name="horizontalLayout_18" stretch="4,7">
                   <item>
                    <widget class="QFrame" name="reportCreationFrame">
                     <property name="frameShape">
@@ -3469,7 +3475,7 @@ QPushButton#btnOpenReport:hover {
                              <rect>
                               <x>0</x>
                               <y>0</y>
-                              <width>436</width>
+                              <width>498</width>
                               <height>586</height>
                              </rect>
                             </property>

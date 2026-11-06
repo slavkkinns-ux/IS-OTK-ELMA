@@ -234,3 +234,37 @@ class Database:
             return self.execute_query(query)
         except pymysql.Error:
             return []
+
+    def get_report_research(self, order_id):
+        query = """
+            SELECT 
+                s.service_name,
+                rr.result_value,
+                rr.conclusion
+            FROM order_services os
+            JOIN services s ON os.service_id = s.service_id
+            LEFT JOIN research_results rr ON os.order_service_id = rr.order_service_id
+            WHERE os.order_id = %s
+        """
+        try:
+            return self.execute_query(query, (order_id,))
+        except pymysql.Error:
+            return []
+
+    def get_recent_reports(self, limit=10):
+        query = f"""
+            SELECT 
+                r.report_id,
+                o.vessel_code,
+                DATE_FORMAT(r.report_date, '%d.%m.%Y') as report_date,
+                e.full_name as employee_name
+            FROM reports r
+            JOIN orders o ON r.order_id = o.order_id
+            JOIN employees e ON r.employee_id = e.employee_id
+            ORDER BY r.report_date DESC
+            LIMIT {int(limit)}
+        """
+        try:
+            return self.execute_query(query)
+        except pymysql.Error:
+            return []

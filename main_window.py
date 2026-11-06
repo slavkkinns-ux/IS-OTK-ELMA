@@ -93,18 +93,12 @@ class MainWindow(QMainWindow):
             self.ui.btnHome.setChecked(True)
 
     def _setup_tables(self):
-        # ==========================================
-        # 1. Таблица последних заказов (4 колонки)
-        # ==========================================
         header_recent = self.ui.tableRecentOrders.horizontalHeader()
         header_recent.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header_recent.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header_recent.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         header_recent.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
 
-        # ==========================================
-        # 2. Таблица всех заказов (7 колонок)
-        # ==========================================
         header_orders = self.ui.tableOrders.horizontalHeader()
         header_orders.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header_orders.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -114,9 +108,6 @@ class MainWindow(QMainWindow):
         header_orders.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         header_orders.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
 
-        # ==========================================
-        # 3. Таблица клиентов (5 колонок)
-        # ==========================================
         header_clients = self.ui.tableClients.horizontalHeader()
         header_clients.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header_clients.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -124,47 +115,35 @@ class MainWindow(QMainWindow):
         header_clients.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         header_clients.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
 
-        # ==========================================
-        # 4. Таблица очереди исследований (5 колонок)
-        # ==========================================
         header_research = self.ui.tableResearchQueue.horizontalHeader()
         
-        # Короткие колонки - по содержимому
-        header_research.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Заказ
-        header_research.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Код сосуда
-        header_research.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Результат
+        header_research.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header_research.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header_research.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        header_research.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        header_research.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
         
-        # Длинные колонки - растягиваются, но с минимальной шириной 150px
-        header_research.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Исследование
-        header_research.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Клиент
+        self.ui.tableResearchQueue.setColumnWidth(2, 150)
+        self.ui.tableResearchQueue.setColumnWidth(3, 150)
         
-        # Устанавливаем начальную ширину 150px для длинных колонок
-        self.ui.tableResearchQueue.setColumnWidth(2, 150)  # Исследование
-        self.ui.tableResearchQueue.setColumnWidth(3, 150)  # Клиент
-        
-        # Включаем перенос текста
         self.ui.tableResearchQueue.setWordWrap(True)
 
-        # ==========================================
-        # 5. Таблица исследований в отчете (3 колонки)
-        # ==========================================
         header_report = self.ui.tableReportResearch.horizontalHeader()
-        header_report.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)           # Исследование
-        header_report.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Результат
-        header_report.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)           # Заключение
+        header_report.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        header_report.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header_report.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
 
-        # ==========================================
-        # 6. Таблица последних отчетов (4 колонки)
-        # ==========================================
+        self.ui.tableReportResearch.setColumnWidth(0, 140)
+        self.ui.tableReportResearch.setColumnWidth(1, 140)
+        self.ui.tableReportResearch.setColumnWidth(2, 140)
+        self.ui.tableReportResearch.setWordWrap(True)
+
         header_recent_rep = self.ui.tableRecentReports.horizontalHeader()
-        header_recent_rep.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # Номер отчёта
-        header_recent_rep.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)  # Номер заказа
-        header_recent_rep.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Дата
-        header_recent_rep.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)           # Сотрудник
+        header_recent_rep.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header_recent_rep.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header_recent_rep.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header_recent_rep.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
 
-        # ==========================================
-        # 7. Общие настройки для ВСЕХ таблиц
-        # ==========================================
         for table in [
             self.ui.tableRecentOrders, 
             self.ui.tableOrders, 
@@ -173,13 +152,8 @@ class MainWindow(QMainWindow):
             self.ui.tableReportResearch, 
             self.ui.tableRecentReports
         ]:
-            # Скрываем вертикальный заголовок (номера строк)
             table.verticalHeader().setVisible(False)
             
-            # ВАЖНО: Мы УБРАЛИ отсюда table.horizontalHeader().setStretchLastSection(True), 
-            # так как это часто конфликтует с явным заданием ResizeToContents/Stretch 
-            # и является главной причиной появления "...".
-
     def _on_nav_clicked(self, button):
         pages = {
             self.ui.btnHome: self.ui.pageHome,
@@ -255,6 +229,13 @@ class MainWindow(QMainWindow):
 
     def _setup_reports_tab(self):
         self.ui.btnCreateReport.clicked.connect(self._create_report)
+        self.ui.btnOpenReport.clicked.connect(self._open_report)
+        self.ui.btnPrintReport.clicked.connect(self._print_report)
+
+        self.ui.comboreportsOrder.currentIndexChanged.connect(self._on_report_order_changed)
+
+        self._load_reports_combo()
+        self._load_recent_reports()
 
     def _on_nav_clicked(self, button):
         pages = {
@@ -297,6 +278,12 @@ class MainWindow(QMainWindow):
         pass
 
     def _view_research(self):
+        pass
+
+    def _open_report(self):
+        pass
+
+    def _print_report(self):
         pass
 
     def _refresh_clients_page(self):
@@ -426,3 +413,55 @@ class MainWindow(QMainWindow):
             item_result.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableResearchQueue.setItem(row_idx, 4, item_result)
         self.ui.tableResearchQueue.resizeRowsToContents()
+
+    def _load_reports_combo(self):
+        db = Database()
+        orders = db.get_all_orders()
+
+        self.ui.comboreportsOrder.blockSignals(True)
+        self.ui.comboreportsOrder.clear()
+        for order in orders:
+            self.ui.comboreportsOrder.addItem(order['vessel_code'], order['order_id'])
+        self.ui.comboreportsOrder.blockSignals(False)
+
+        if orders:
+            self._load_report_research_table(orders[0]['order_id'])
+
+    def _on_report_order_changed(self, index):
+        order_id = self.ui.comboreportsOrder.currentData()
+        if order_id:
+            self._load_report_research_table(order_id)
+
+    def _load_report_research_table(self, order_id):
+        db = Database()
+        rows = db.get_report_research(order_id)
+
+        self.ui.tableReportResearch.setRowCount(0)
+        if not rows:
+            return
+
+        self.ui.tableReportResearch.setRowCount(len(rows))
+        for row_idx, r in enumerate(rows):
+            self.ui.tableReportResearch.setItem(row_idx, 0, QTableWidgetItem(r['service_name']))
+            self.ui.tableReportResearch.setItem(row_idx, 1, QTableWidgetItem(r['result_value'] or 'Не выполнено'))
+            self.ui.tableReportResearch.setItem(row_idx, 2, QTableWidgetItem(r['conclusion'] or '-'))
+        self.ui.tableReportResearch.resizeRowsToContents()
+
+    def _load_recent_reports(self):
+        db = Database()
+        rows = db.get_recent_reports()
+
+        self.ui.tableRecentReports.setRowCount(0)
+        if not rows:
+            return
+
+        self.ui.tableRecentReports.setRowCount(len(rows))
+        for row_idx, r in enumerate(rows):
+            self.ui.tableRecentReports.setItem(row_idx, 0, QTableWidgetItem(f"ОТЧ-{r['report_id']:04d}"))
+            self.ui.tableRecentReports.setItem(row_idx, 1, QTableWidgetItem(r['vessel_code']))
+
+            item_date = QTableWidgetItem(r['report_date'])
+            item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableRecentReports.setItem(row_idx, 2, item_date)
+
+            self.ui.tableRecentReports.setItem(row_idx, 3, QTableWidgetItem(r['employee_name']))
