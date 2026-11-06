@@ -1,6 +1,6 @@
 DB_CONFIG = {
     'host': 'localhost',
-    'user': 'root',
-    'password': '',
+    'user': 'your_user',
+    'password': 'your_password',
     'database': 'elma'
 }
