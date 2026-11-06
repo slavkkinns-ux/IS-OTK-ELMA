@@ -121,3 +121,16 @@ class Database:
             return result[0] if result else None
         except pymysql.Error:
             return None
+
+    def get_clients_stats(self):
+        query = """
+            SELECT
+                (SELECT COUNT(*) FROM clients) AS total_clients,
+                (SELECT COUNT(DISTINCT client_id) FROM orders WHERE status <> 'Завершён') AS active_clients,
+                (SELECT COUNT(DISTINCT client_id) FROM orders) AS clients_with_orders
+        """
+        try:
+            result = self.execute_query(query)
+            return result[0] if result else None
+        except pymysql.Error:
+            return None

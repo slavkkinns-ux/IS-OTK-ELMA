@@ -166,9 +166,9 @@ class MainWindow(QMainWindow):
         self._load_orders_stats()
 
     def _setup_clients_tab(self):
-        self.ui.brnRefreshClients.clicked.connect(self._load_clients_to_table)
-
+        self.ui.brnRefreshClients.clicked.connect(self._refresh_clients_page)
         self._load_clients_to_table()
+        self._load_clients_stats()
 
     def _load_clients_to_table(self):
         db = Database()
@@ -243,6 +243,10 @@ class MainWindow(QMainWindow):
     def _view_order(self):
         pass
 
+    def _refresh_clients_page(self):
+        self._load_clients_to_table()
+        self._load_clients_stats()
+    
     def _load_home_stats(self):
         db = Database()
         stats = db.get_home_stats()
@@ -262,3 +266,12 @@ class MainWindow(QMainWindow):
         self.ui.lblOrdersInProgressValue.setText(str(stats['in_progress']))
         self.ui.lblOrdersPendingValue.setText(str(stats['pending']))
         self.ui.lblOrdersCompletedValue.setText(str(stats['completed']))
+
+    def _load_clients_stats(self):
+        db = Database()
+        stats = db.get_clients_stats()
+        if not stats:
+            return
+        self.ui.lblcardTotalClientsValue.setText(str(stats['total_clients']))
+        self.ui.lblcardActiveClientsValue.setText(str(stats['active_clients']))
+        self.ui.lblcardClientsWithOrdersValue.setText(str(stats['clients_with_orders']))
