@@ -156,6 +156,7 @@ class MainWindow(QMainWindow):
 
     def _setup_home_tab(self):
         self.ui.btnAllOrders.clicked.connect(self._go_to_orders)
+        self._load_home_stats()
 
     def _setup_orders_tab(self):
         self.ui.btnAddOrder.clicked.connect(self._add_order)
@@ -236,3 +237,13 @@ class MainWindow(QMainWindow):
 
     def _create_report(self):
         pass
+
+    def _load_home_stats(self):
+        db = Database()
+        stats = db.get_home_stats()
+        if not stats:
+            return
+        self.ui.lblOrderValue.setText(str(stats['total_orders']))
+        self.ui.lblActiveOrdersValue.setText(str(stats['active_orders']))
+        self.ui.lblClientsValue.setText(str(stats['total_clients']))
+        self.ui.lblPendingChecksValue.setText(str(stats['pending_checks']))

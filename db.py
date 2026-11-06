@@ -93,3 +93,17 @@ class Database:
     def close(self):
         if self._connection and self._connection.open:
             self._connection.close()
+
+    def get_home_stats(self):
+        query = """
+            SELECT
+                (SELECT COUNT(*) FROM orders) AS total_orders,
+                (SELECT COUNT(*) FROM orders WHERE status <> 'Завершён') AS active_orders,
+                (SELECT COUNT(*) FROM clients) AS total_clients,
+                (SELECT COUNT(*) FROM orders WHERE status = 'Ожидает контроля') AS pending_checks
+        """
+        try:
+            result = self.execute_query(query)
+            return result[0] if result else None
+        except pymysql.Error:
+            return None
