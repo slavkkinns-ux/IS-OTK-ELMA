@@ -399,7 +399,7 @@ QLabel#lblSidebarTitle {
             <enum>QFrame::Raised</enum>
            </property>
            <property name="currentIndex">
-            <number>4</number>
+            <number>3</number>
            </property>
            <widget class="QWidget" name="pageHome">
             <property name="styleSheet">
@@ -2639,8 +2639,26 @@ QScrollBar::sub-line:horizontal {
                 <enum>QFrame::Raised</enum>
                </property>
                <layout class="QHBoxLayout" name="horizontalLayout_16">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
                 <item>
                  <widget class="QFrame" name="queueFrameResearch">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
                   <property name="minimumSize">
                    <size>
                     <width>350</width>
@@ -2707,6 +2725,9 @@ QScrollBar::sub-line:horizontal {
                      </item>
                      <item>
                       <widget class="QTableWidget" name="tableResearchQueue">
+                       <property name="sizeAdjustPolicy">
+                        <enum>QAbstractScrollArea::AdjustToContents</enum>
+                       </property>
                        <property name="editTriggers">
                         <set>QAbstractItemView::NoEditTriggers</set>
                        </property>
@@ -2719,11 +2740,23 @@ QScrollBar::sub-line:horizontal {
                        <property name="selectionBehavior">
                         <enum>QAbstractItemView::SelectRows</enum>
                        </property>
+                       <attribute name="horizontalHeaderCascadingSectionResizes">
+                        <bool>true</bool>
+                       </attribute>
+                       <attribute name="horizontalHeaderMinimumSectionSize">
+                        <number>39</number>
+                       </attribute>
                        <attribute name="verticalHeaderVisible">
                         <bool>false</bool>
                        </attribute>
+                       <attribute name="verticalHeaderCascadingSectionResizes">
+                        <bool>true</bool>
+                       </attribute>
                        <attribute name="verticalHeaderDefaultSectionSize">
                         <number>0</number>
+                       </attribute>
+                       <attribute name="verticalHeaderMinimumSectionSize">
+                        <number>50</number>
                        </attribute>
                        <column>
                         <property name="text">
@@ -2760,7 +2793,7 @@ QScrollBar::sub-line:horizontal {
                 <item>
                  <widget class="QFrame" name="detailsFrameResearch">
                   <property name="sizePolicy">
-                   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                     <horstretch>0</horstretch>
                     <verstretch>0</verstretch>
                    </sizepolicy>
@@ -3436,7 +3469,7 @@ QPushButton#btnOpenReport:hover {
                              <rect>
                               <x>0</x>
                               <y>0</y>
-                              <width>588</width>
+                              <width>436</width>
                               <height>586</height>
                              </rect>
                             </property>
