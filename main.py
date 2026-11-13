@@ -27,9 +27,17 @@ def run_app():
         Session.init()
 
         if Session.is_authenticated():
-            window = MainWindow(app)
-            window.show()
+            user = Session.get_user()
+            user_type = user.get("user_type", "employee") if user else "employee"
             
+            if user_type == "client":
+                from client_window import ClientWindow
+                window = ClientWindow()
+            else:
+                from main_window import MainWindow
+                window = MainWindow(app)
+            
+            window.show()
             app.exec()
             
             if not Session.is_authenticated():

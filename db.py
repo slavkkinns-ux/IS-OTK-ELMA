@@ -268,3 +268,101 @@ class Database:
             return self.execute_query(query)
         except pymysql.Error:
             return []
+
+    def get_client_by_login(self, login, password_hash):
+        """
+        Ищет клиента по логину и паролю.
+        """
+        query = """
+            SELECT 
+                c.client_id, 
+                c.login, 
+                c.email, 
+                c.client_type, 
+                c.phone,
+                COALESCE(l.company_name, i.full_name) as full_name,
+                COALESCE(l.contact_person, i.full_name) as contact_person
+            FROM clients c
+            LEFT JOIN legal_entities l ON c.client_id = l.client_id
+            LEFT JOIN individuals i ON c.client_id = i.client_id
+            WHERE c.login = %s AND c.password_hash = %s AND c.is_active = 1
+        """
+        try:
+            result = self.execute_query(query, (login, password_hash))
+            return result[0] if result else None
+        except Exception as e:
+            print(f"get_client_by_login error: {e}")
+            return None
+
+    def get_client_stats(self, client_id):
+        query = """
+            SELECT COUNT(*) as total_orders,
+                   SUM(CASE WHEN status IN ('Новый', 'В работе') THEN 1 ELSE 0 END) as active_orders,
+                   SUM(CASE WHEN status = 'Завершён' THEN 1 ELSE 0 END) as completed_orders
+            FROM orders WHERE client_id = %s AND is_archived = 0
+        """
+        try:
+            result = self.execute_query(query, (client_id,))
+            return result[0] if result else None
+        except Exception: return None
+
+    def get_client_orders(self, client_id, limit=None):
+        query = """
+            SELECT o.order_id, o.vessel_code, DATE_FORMAT(o.order_date, '%%d.%%m.%%Y') as order_date,
+                   o.status, COUNT(os.order_service_id) as services_count,
+                   SUM(os.price_at_order) as total_price,
+                   GROUP_CONCAT(s.service_name SEPARATOR ', ') as services_list
+            FROM orders o
+            LEFT JOIN order_services os ON o.order_id = os.order_id
+            LEFT JOIN services s ON os.service_id = s.service_id
+            WHERE o.client_id = %s AND o.is_archived = 0
+            GROUP BY o.order_id, o.vessel_code, o.order_date, o.status
+            ORDER BY o.order_date DESC
+        """
+        if limit: query += f" LIMIT {int(limit)}"
+        try: return self.execute_query(query, (client_id,))
+        except Exception: return []
+
+    def get_client_results(self, client_id):
+        query = """
+            SELECT o.vessel_code, s.service_name, DATE_FORMAT(rr.result_date, '%%d.%%m.%%Y') as result_date,
+                   rr.result_value, rr.conclusion, e.full_name as employee_name
+            FROM orders o JOIN order_services os ON o.order_id = os.order_id
+            JOIN services s ON os.service_id = s.service_id
+            LEFT JOIN research_results rr ON os.order_service_id = rr.order_service_id
+            LEFT JOIN employees e ON rr.employee_id = e.employee_id
+            WHERE o.client_id = %s AND o.is_archived = 0 ORDER BY rr.result_date DESC
+        """
+        try: return self.execute_query(query, (client_id,))
+        except Exception: return []
+
+    def get_client_reports(self, client_id):
+        query = """
+            SELECT r.report_id, o.vessel_code, DATE_FORMAT(r.report_date, '%%d.%%m.%%Y') as report_date
+            FROM reports r JOIN orders o ON r.order_id = o.order_id
+            WHERE o.client_id = %s ORDER BY r.report_date DESC
+        """
+        try: return self.execute_query(query, (client_id,))
+        except Exception: return []
+
+    def get_client_info(self, client_id):
+        """
+        Получает информацию о клиенте для профиля.
+        """
+        query = """
+            SELECT 
+                c.email, 
+                c.phone, 
+                COALESCE(l.company_name, i.full_name) as name,
+                COALESCE(l.contact_person, i.full_name) as contact_person
+            FROM clients c
+            LEFT JOIN legal_entities l ON c.client_id = l.client_id
+            LEFT JOIN individuals i ON c.client_id = i.client_id
+            WHERE c.client_id = %s
+        """
+        try:
+            result = self.execute_query(query, (client_id,))
+            return result[0] if result else None
+        except Exception as e:
+            print(f"get_client_info error: {e}")
+            return None

@@ -1,5 +1,5 @@
-import json
 import os
+import json
 
 SESSION_FILE = "session.json"
 
@@ -8,77 +8,39 @@ class Role:
     LAB_TECHNICIAN = "lab_technician"
     CONTROLLER = "controller"
     ADMIN = "admin"
+    CLIENT = "client"
 
 ROLE_DISPLAY_NAMES = {
     Role.MANAGER: "Менеджер по работе с клиентами",
     Role.LAB_TECHNICIAN: "Лаборант",
-    Role.CONTROLLER: "Контроллер",
+    Role.CONTROLLER: "Контролёр",
     Role.ADMIN: "Администратор",
+    Role.CLIENT: "Клиент",
 }
 
 ROLE_PERMISSIONS = {
-    Role.MANAGER: {
-        "can_create_order": True,
-        "can_view_orders": False,
-        "can_create_reports": False,
-        "can_view_reports": False,
-        "can_do_research": False,
-    },
-    Role.LAB_TECHNICIAN: {
-        "can_create_order": True,
-        "can_view_orders": True,
-        "can_create_reports": True,
-        "can_view_reports": True,
-        "can_do_research": True,
-    },
-    Role.CONTROLLER: {
-        "can_create_order": True,
-        "can_view_orders": True,
-        "can_create_reports": True,
-        "can_view_reports": True,
-        "can_do_research": True,
-    },
-    Role.ADMIN: {
-        "can_create_order": True,
-        "can_view_orders": True,
-        "can_create_reports": True,
-        "can_view_reports": True,
-        "can_do_research": True,
-    },
+    Role.MANAGER: {"can_create_order": True, "can_view_orders": False, "can_create_reports": False, "can_view_reports": False, "can_do_research": False},
+    Role.LAB_TECHNICIAN: {"can_create_order": True, "can_view_orders": True, "can_create_reports": True, "can_view_reports": True, "can_do_research": True},
+    Role.CONTROLLER: {"can_create_order": True, "can_view_orders": True, "can_create_reports": True, "can_view_reports": True, "can_do_research": True},
+    Role.ADMIN: {"can_create_order": True, "can_view_orders": True, "can_create_reports": True, "can_view_reports": True, "can_do_research": True},
+    Role.CLIENT: {"can_create_order": False, "can_view_orders": True, "can_create_reports": False, "can_view_reports": True, "can_do_research": False},
 }
 
 class Session:
     _current_user = None
 
     @classmethod
-    def _save_to_file(cls):
-        if cls._current_user:
-            with open(SESSION_FILE, "w", encoding="utf-8") as f:
-                json.dump(cls._current_user, f, indent=2, ensure_ascii=False)
-
-    @classmethod
-    def _load_from_file(cls):
-        if not os.path.exists(SESSION_FILE):
-            return None
-        try:
-            with open(SESSION_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                cls._current_user = data
-                return data
-        except (json.JSONDecodeError, IOError):
-            return None
-
-    @classmethod
     def init(cls):
         cls._load_from_file()
 
     @classmethod
-    def set_user(cls, login, role, display_name=None, employee_id=None):
+    def set_user(cls, login, role, display_name=None, user_id=None, user_type='employee'):
         cls._current_user = {
             "login": login,
             "role": role,
             "display_name": display_name or login.capitalize(),
-            "employee_id": employee_id
+            "user_id": user_id,
+            "user_type": user_type
         }
         cls._save_to_file()
 
@@ -87,35 +49,30 @@ class Session:
         return cls._current_user
 
     @classmethod
-    def get_employee_id(cls):
-        if cls._current_user:
-            return cls._current_user.get("employee_id")
-        return None
+    def get_user_id(cls):
+        return cls._current_user.get("user_id") if cls._current_user else None
+
+    @classmethod
+    def get_user_type(cls):
+        return cls._current_user.get("user_type", "employee") if cls._current_user else "employee"
 
     @classmethod
     def get_role(cls):
-        if cls._current_user:
-            return cls._current_user.get("role")
-        return None
+        return cls._current_user.get("role") if cls._current_user else None
 
     @classmethod
     def get_display_name(cls):
-        if cls._current_user:
-            return cls._current_user.get("display_name", cls._current_user.get("login", ""))
-        return ""
+        return cls._current_user.get("display_name", cls._current_user.get("login", "")) if cls._current_user else ""
 
     @classmethod
     def get_role_display_name(cls):
-        role = cls.get_role()
-        return ROLE_DISPLAY_NAMES.get(role, "Неизвестная роль")
+        return ROLE_DISPLAY_NAMES.get(cls.get_role(), "Неизвестная роль")
 
     @classmethod
     def has_permission(cls, permission: str) -> bool:
         role = cls.get_role()
-        if not role:
-            return False
-        perms = ROLE_PERMISSIONS.get(role, {})
-        return perms.get(permission, False)
+        if not role: return False
+        return ROLE_PERMISSIONS.get(role, {}).get(permission, False)
 
     @classmethod
     def clear(cls):
@@ -126,3 +83,20 @@ class Session:
     @classmethod
     def is_authenticated(cls):
         return cls._current_user is not None
+
+    @classmethod
+    def _save_to_file(cls):
+        try:
+            with open(SESSION_FILE, 'w', encoding='utf-8') as f:
+                json.dump(cls._current_user, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Ошибка сохранения сессии: {e}")
+
+    @classmethod
+    def _load_from_file(cls):
+        if os.path.exists(SESSION_FILE):
+            try:
+                with open(SESSION_FILE, 'r', encoding='utf-8') as f:
+                    cls._current_user = json.load(f)
+            except Exception:
+                cls._current_user = None
