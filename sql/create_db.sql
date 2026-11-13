@@ -15,93 +15,123 @@ DROP TABLE IF EXISTS employees;
 -- 3. СОЗДАЕМ ТАБЛИЦЫ
 
 -- Сотрудники
-CREATE TABLE employees (
-    employee_id INT PRIMARY KEY AUTO_INCREMENT,
-    full_name VARCHAR(255) NOT NULL,
-    login VARCHAR(100) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL,
-    is_active TINYINT DEFAULT 1
-);
+CREATE TABLE `services` (
+  `service_id` int NOT NULL AUTO_INCREMENT,
+  `service_name` varchar(255) NOT NULL,
+  `price` decimal(10,2) NOT NULL,
+  `is_active` tinyint DEFAULT '1',
+  PRIMARY KEY (`service_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Журнал действий
-CREATE TABLE action_logs (
-    log_id INT PRIMARY KEY AUTO_INCREMENT,
-    employee_id INT NOT NULL,
-    action VARCHAR(100) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
-);
+CREATE TABLE `research_results` (
+  `research_id` int NOT NULL AUTO_INCREMENT,
+  `order_service_id` int NOT NULL,
+  `result_value` varchar(255) DEFAULT NULL,
+  `conclusion` text,
+  `result_date` date DEFAULT NULL,
+  `employee_id` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`research_id`),
+  KEY `order_service_id` (`order_service_id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `research_results_ibfk_1` FOREIGN KEY (`order_service_id`) REFERENCES `order_services` (`order_service_id`) ON DELETE CASCADE,
+  CONSTRAINT `research_results_ibfk_2` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`employee_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Общая таблица клиентов
-CREATE TABLE clients (
-    client_id INT PRIMARY KEY AUTO_INCREMENT,
-    client_type VARCHAR(2) NOT NULL, -- 'FL' или 'UL'
-    phone VARCHAR(20) NOT NULL,
-    email VARCHAR(254)
-);
+CREATE TABLE `reports` (
+  `report_id` int NOT NULL AUTO_INCREMENT,
+  `order_id` int NOT NULL,
+  `employee_id` int NOT NULL,
+  `report_date` datetime DEFAULT CURRENT_TIMESTAMP,
+  `file_path` varchar(500) DEFAULT NULL,
+  PRIMARY KEY (`report_id`),
+  KEY `order_id` (`order_id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `reports_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`),
+  CONSTRAINT `reports_ibfk_2` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`employee_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Физ. лица (ФЛ)
-CREATE TABLE individuals (
-    client_id INT PRIMARY KEY,
-    full_name VARCHAR(255) NOT NULL,
-    birth_date DATE NOT NULL,
-    passport_series VARCHAR(4) NOT NULL,
-    passport_number VARCHAR(6) NOT NULL,
-    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-);
+CREATE TABLE `orders` (
+  `order_id` int NOT NULL AUTO_INCREMENT,
+  `vessel_code` varchar(50) NOT NULL,
+  `client_id` int NOT NULL,
+  `employee_id` int NOT NULL,
+  `order_date` datetime DEFAULT CURRENT_TIMESTAMP,
+  `status` varchar(50) NOT NULL DEFAULT 'Новый',
+  PRIMARY KEY (`order_id`),
+  UNIQUE KEY `vessel_code` (`vessel_code`),
+  KEY `client_id` (`client_id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`client_id`),
+  CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`employee_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Юр. лица (ЮЛ)
-CREATE TABLE legal_entities (
-    client_id INT PRIMARY KEY,
-    company_name VARCHAR(255) NOT NULL,
-    address VARCHAR(255) NOT NULL,
-    inn VARCHAR(12) NOT NULL UNIQUE,
-    kpp VARCHAR(9),
-    checking_account VARCHAR(20) NOT NULL,
-    bik VARCHAR(9) NOT NULL,
-    director_name VARCHAR(255) NOT NULL,
-    contact_person VARCHAR(255) NOT NULL,
-    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-);
+CREATE TABLE `order_services` (
+  `order_service_id` int NOT NULL AUTO_INCREMENT,
+  `order_id` int NOT NULL,
+  `service_id` int NOT NULL,
+  `price_at_order` decimal(10,2) NOT NULL,
+  PRIMARY KEY (`order_service_id`),
+  KEY `order_id` (`order_id`),
+  KEY `service_id` (`service_id`),
+  CONSTRAINT `order_services_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE CASCADE,
+  CONSTRAINT `order_services_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Справочник услуг
-CREATE TABLE services (
-    service_id INT PRIMARY KEY AUTO_INCREMENT,
-    service_name VARCHAR(255) NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    is_active TINYINT DEFAULT 1
-);
+CREATE TABLE `legal_entities` (
+  `client_id` int NOT NULL,
+  `company_name` varchar(255) NOT NULL,
+  `address` varchar(255) NOT NULL,
+  `inn` varchar(12) NOT NULL,
+  `kpp` varchar(9) DEFAULT NULL,
+  `checking_account` varchar(20) NOT NULL,
+  `bik` varchar(9) NOT NULL,
+  `director_name` varchar(255) NOT NULL,
+  `contact_person` varchar(255) NOT NULL,
+  PRIMARY KEY (`client_id`),
+  UNIQUE KEY `inn` (`inn`),
+  CONSTRAINT `legal_entities_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`client_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Заказы
-CREATE TABLE orders (
-    order_id INT PRIMARY KEY AUTO_INCREMENT,
-    vessel_code VARCHAR(50) NOT NULL UNIQUE,
-    client_id INT NOT NULL,
-    employee_id INT NOT NULL,
-    order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(50) NOT NULL DEFAULT 'Новый',
-    FOREIGN KEY (client_id) REFERENCES clients(client_id),
-    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
-);
+CREATE TABLE `individuals` (
+  `client_id` int NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `birth_date` date NOT NULL,
+  `passport_series` varchar(4) NOT NULL,
+  `passport_number` varchar(6) NOT NULL,
+  PRIMARY KEY (`client_id`),
+  CONSTRAINT `individuals_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`client_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Услуги в заказе
-CREATE TABLE order_services (
-    order_service_id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id INT NOT NULL,
-    service_id INT NOT NULL,
-    price_at_order DECIMAL(10,2) NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
-    FOREIGN KEY (service_id) REFERENCES services(service_id)
-);
+CREATE TABLE `employees` (
+  `employee_id` int NOT NULL AUTO_INCREMENT,
+  `full_name` varchar(255) NOT NULL,
+  `login` varchar(100) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `role` varchar(50) NOT NULL,
+  `is_active` tinyint DEFAULT '1',
+  PRIMARY KEY (`employee_id`),
+  UNIQUE KEY `login` (`login`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Отчеты
-CREATE TABLE reports (
-    report_id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id INT NOT NULL,
-    employee_id INT NOT NULL,
-    report_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    file_path VARCHAR(500),
-    FOREIGN KEY (order_id) REFERENCES orders(order_id),
-    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
-);
+CREATE TABLE `clients` (
+  `client_id` int NOT NULL AUTO_INCREMENT,
+  `client_type` varchar(2) NOT NULL,
+  `login` varchar(100) DEFAULT NULL,
+  `password_hash` varchar(64) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `phone` varchar(20) NOT NULL,
+  `email` varchar(254) DEFAULT NULL,
+  PRIMARY KEY (`client_id`),
+  UNIQUE KEY `login` (`login`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `action_logs` (
+  `log_id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `action` varchar(100) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`log_id`),
+  KEY `employee_id` (`employee_id`),
+  CONSTRAINT `action_logs_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`employee_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
