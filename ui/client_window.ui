@@ -1,0 +1,776 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ClientsWindow</class>
+ <widget class="QMainWindow" name="ClientsWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1100</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>1100</width>
+    <height>700</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Личный кабинет клиента</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">
+QMainWindow { background: #F1F3F6; }
+QFrame#sidebarFrame { background: #183B63; }
+QLabel { color: #24364B; }
+QLabel#logoLabel { color: white; font-size: 25px; font-weight: bold; }
+QLabel#sidebarSubtitle { color: #C5D5E7; font-size: 12px; }
+QPushButton {
+ background: transparent;
+ color: #EAF1F8;
+ border: none;
+ border-radius: 7px;
+ padding: 12px;
+ text-align: left;
+ font-size: 14px;
+}
+QPushButton:hover { background: #244D78; }
+QPushButton:checked { background: #2D83D5; color: white; }
+QFrame#contentFrame { background: #F1F3F6; }
+QFrame#cardFrame, QFrame#statsCard {
+ background: white;
+ border: 1px solid #D8E3EF;
+ border-radius: 10px;
+}
+QLabel#pageTitle { font-size: 24px; font-weight: bold; color: #183B63; }
+QLabel#pageSubtitle { color: #60758E; font-size: 13px; }
+QLabel#statValue { color: #183B63; font-size: 26px; font-weight: bold; }
+QLabel#statCaption { color: #60758E; font-size: 13px; }
+QLabel#sectionTitle { font-size: 16px; font-weight: bold; color: #183B63; }
+QLineEdit, QComboBox {
+ background: white;
+ border: 1px solid #D8E3EF;
+ border-radius: 6px;
+ padding: 8px;
+ min-height: 22px;
+}
+QTableWidget {
+ background: white;
+ border: 1px solid #D8E3EF;
+ border-radius: 7px;
+ gridline-color: #E8EDF3;
+ selection-background-color: #DCEBFA;
+ selection-color: #183B63;
+}
+QHeaderView::section {
+ background: #EDF2F7;
+ color: #183B63;
+ padding: 9px;
+ border: none;
+ font-weight: bold;
+}
+QPushButton#btnPrimary {
+ background: #2D83D5;
+ color: white;
+ text-align: center;
+ padding: 10px 18px;
+}
+QPushButton#btnPrimary:hover { background: #246EBA; }
+   </string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayoutMain">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QFrame" name="sidebarFrame">
+      <property name="minimumSize">
+       <size>
+        <width>220</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>220</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayoutSidebar">
+       <property name="leftMargin">
+        <number>15</number>
+       </property>
+       <property name="topMargin">
+        <number>25</number>
+       </property>
+       <property name="rightMargin">
+        <number>15</number>
+       </property>
+       <property name="bottomMargin">
+        <number>18</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="logoLabel">
+         <property name="text">
+          <string>ЭЛМА</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="sidebarSubtitle">
+         <property name="text">
+          <string>Личный кабинет</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="sidebarSpacerTop">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>25</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnHome">
+         <property name="text">
+          <string>⌂  Главная</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnMyOrders">
+         <property name="text">
+          <string>▤  Мои заказы</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnResults">
+         <property name="text">
+          <string>◉  Результаты исследований</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnDocuments">
+         <property name="text">
+          <string>▧  Документы</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnProfile">
+         <property name="text">
+          <string>♙  Мой профиль</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="sidebarSpacerBottom">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnLogout">
+         <property name="text">
+          <string>↪  Выйти из аккаунта</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QFrame" name="contentFrame">
+      <layout class="QVBoxLayout" name="verticalLayoutContent">
+       <property name="leftMargin">
+        <number>25</number>
+       </property>
+       <property name="topMargin">
+        <number>22</number>
+       </property>
+       <property name="rightMargin">
+        <number>25</number>
+       </property>
+       <property name="bottomMargin">
+        <number>22</number>
+       </property>
+       <item>
+        <widget class="QStackedWidget" name="clientStackedWidget">
+         <property name="currentIndex">
+          <number>3</number>
+         </property>
+         <widget class="QWidget" name="pageHome">
+          <layout class="QVBoxLayout" name="verticalLayoutHome">
+           <item>
+            <widget class="QLabel" name="pageTitle">
+             <property name="text">
+              <string>Добро пожаловать!</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="pageSubtitle">
+             <property name="text">
+              <string>Здесь вы можете следить за своими заказами и результатами исследований.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutStats">
+             <item>
+              <widget class="QFrame" name="statsCard">
+               <layout class="QVBoxLayout" name="verticalLayoutStat1">
+                <item>
+                 <widget class="QLabel" name="statCaption">
+                  <property name="text">
+                   <string>Всего заказов</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="statValue">
+                  <property name="text">
+                   <string>12</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QFrame" name="statsCard2">
+               <property name="styleSheet">
+                <string notr="true">background:white;border:1px solid #D8E3EF;border-radius:10px;</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayoutStat2">
+                <item>
+                 <widget class="QLabel" name="statCaption">
+                  <property name="text">
+                   <string>В работе</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="statValue">
+                  <property name="text">
+                   <string>3</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QFrame" name="statsCard3">
+               <property name="styleSheet">
+                <string notr="true">background:white;border:1px solid #D8E3EF;border-radius:10px;</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayoutStat3">
+                <item>
+                 <widget class="QLabel" name="statCaption">
+                  <property name="text">
+                   <string>Завершено</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="statValue">
+                  <property name="text">
+                   <string>9</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="sectionTitle">
+             <property name="text">
+              <string>Последние заказы</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QTableWidget" name="tableHomeOrders">
+             <property name="rowCount">
+              <number>0</number>
+             </property>
+             <property name="columnCount">
+              <number>4</number>
+             </property>
+             <column>
+              <property name="text">
+               <string>Заказ</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Дата</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Исследования</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Статус</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="sectionTitle">
+             <property name="text">
+              <string>Последние уведомления</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="notificationsFrame">
+             <property name="styleSheet">
+              <string notr="true">background:white;border:1px solid #D8E3EF;border-radius:10px;</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayoutNotifications">
+              <item>
+               <widget class="QLabel" name="lblNotification1">
+                <property name="text">
+                 <string>Заказ № 1024 принят в работу.</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblNotification2">
+                <property name="text">
+                 <string>По заказу № 1021 доступны результаты исследований.</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="pageMyOrders">
+          <layout class="QVBoxLayout" name="verticalLayoutMyOrders">
+           <item>
+            <widget class="QLabel" name="pageTitle">
+             <property name="text">
+              <string>Мои заказы</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="pageSubtitle">
+             <property name="text">
+              <string>Просмотр информации о ваших заказах и их текущем статусе.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutOrdersFilters">
+             <item>
+              <widget class="QLineEdit" name="editOrderSearch">
+               <property name="placeholderText">
+                <string>Поиск по номеру заказа...</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="comboOrderStatus">
+               <item>
+                <property name="text">
+                 <string>Все статусы</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Новый</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>В работе</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Завершён</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QTableWidget" name="tableMyOrders">
+             <property name="rowCount">
+              <number>0</number>
+             </property>
+             <property name="columnCount">
+              <number>6</number>
+             </property>
+             <column>
+              <property name="text">
+               <string>Номер заказа</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Дата</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Код сосуда</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Исследования</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Стоимость</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Статус</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="pageResults">
+          <layout class="QVBoxLayout" name="verticalLayoutResults">
+           <item>
+            <widget class="QLabel" name="pageTitle">
+             <property name="text">
+              <string>Результаты исследований</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="pageSubtitle">
+             <property name="text">
+              <string>Результаты и заключения по выполненным исследованиям.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutResultsFilters">
+             <item>
+              <widget class="QLineEdit" name="editResultSearch">
+               <property name="placeholderText">
+                <string>Поиск по заказу...</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="comboResultFilter">
+               <item>
+                <property name="text">
+                 <string>Все результаты</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>С результатом</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Без результата</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QTableWidget" name="tableResults">
+             <property name="rowCount">
+              <number>0</number>
+             </property>
+             <property name="columnCount">
+              <number>6</number>
+             </property>
+             <column>
+              <property name="text">
+               <string>Заказ</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Исследование</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Дата</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Результат</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Заключение</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Исполнитель</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="pageDocuments">
+          <layout class="QVBoxLayout" name="verticalLayoutDocuments">
+           <item>
+            <widget class="QLabel" name="pageTitle">
+             <property name="text">
+              <string>Документы</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="pageSubtitle">
+             <property name="text">
+              <string>Просмотр и открытие документов по вашим заказам.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayoutDocumentsFilters">
+             <item>
+              <widget class="QLineEdit" name="editDocumentSearch">
+               <property name="placeholderText">
+                <string>Поиск по номеру заказа...</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="comboDocumentType">
+               <item>
+                <property name="text">
+                 <string>Все документы</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Отчёты</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Результаты</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QTableWidget" name="tableDocuments">
+             <property name="rowCount">
+              <number>0</number>
+             </property>
+             <property name="columnCount">
+              <number>4</number>
+             </property>
+             <column>
+              <property name="text">
+               <string>Документ</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Тип</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Заказ</string>
+              </property>
+             </column>
+             <column>
+              <property name="text">
+               <string>Дата</string>
+              </property>
+             </column>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnPrimary">
+             <property name="text">
+              <string>Открыть выбранный документ</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="pageProfile">
+          <layout class="QVBoxLayout" name="verticalLayoutProfile">
+           <item>
+            <widget class="QLabel" name="pageTitle">
+             <property name="text">
+              <string>Мой профиль</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="pageSubtitle">
+             <property name="text">
+              <string>Информация о вашей учётной записи и контактные данные.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="profileCard">
+             <property name="styleSheet">
+              <string notr="true">background:white;border:1px solid #D8E3EF;border-radius:10px;</string>
+             </property>
+             <layout class="QFormLayout" name="formLayoutProfile">
+              <item row="0" column="0">
+               <widget class="QLabel" name="lblProfileNameTitle">
+                <property name="text">
+                 <string>Наименование клиента:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLabel" name="lblProfileName">
+                <property name="text">
+                 <string>Название организации / ФИО</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="lblProfileContactTitle">
+                <property name="text">
+                 <string>Контактное лицо:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLabel" name="lblProfileContact">
+                <property name="text">
+                 <string>Не указано</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="lblProfilePhoneTitle">
+                <property name="text">
+                 <string>Телефон:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLabel" name="lblProfilePhone">
+                <property name="text">
+                 <string>Не указан</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="lblProfileEmailTitle">
+                <property name="text">
+                 <string>Электронная почта:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLabel" name="lblProfileEmail">
+                <property name="text">
+                 <string>Не указана</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <spacer name="profileSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>300</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
