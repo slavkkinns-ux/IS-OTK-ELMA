@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EmployeeLoginDialog</class>
+ <widget class="QDialog" name="EmployeeLoginDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>480</width>
+    <height>640</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>480</width>
+    <height>640</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>480</width>
+    <height>640</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Вход для сотрудников — ЭЛМА</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">
+QDialog#EmployeeLoginDialog { background-color: #F4F7FA; }
+QFrame#headerFrame { background-color: #173B60; border-radius: 14px; }
+QLabel#lblLogo { color: white; font-size: 25pt; font-weight: bold; }
+QLabel#lblSystemName, QLabel#lblHeaderSubtitle { color: #D7E7F6; font-size: 9pt; }
+QLabel#lblHeaderTitle { color: white; font-size: 15pt; font-weight: bold; }
+QFrame#loginCard { background-color: white; border: 1px solid #DCE4EC; border-radius: 14px; }
+QLabel#lblFormTitle { color: #173B60; font-size: 15pt; font-weight: bold; }
+QLabel#lblFormSubtitle { color: #64748B; font-size: 9pt; }
+QLabel#lblEmail, QLabel#lblPassword { color: #334155; font-size: 9pt; font-weight: bold; border: none; }
+QLineEdit { background: white; color: #1E293B; border: 1px solid #CBD5E1; border-radius: 7px; padding: 10px 12px; min-height: 20px; }
+QLineEdit:focus { border: 1px solid #245A91; }
+QFrame#passwordFrame { border: 1px solid #CBD5E1; border-radius: 7px; }
+QFrame#passwordFrame QLineEdit { border: none; border-radius: 0px; }
+QPushButton#btnTogglePassword { background: white; color: #245A91; border: none; padding: 7px 10px; min-width: 64px; }
+QPushButton#btnTogglePassword:hover { background: #F1F5F9; }
+QPushButton#btnLogin { background: #245A91; color: white; border: none; border-radius: 7px; padding: 12px; font-size: 10pt; font-weight: bold; min-height: 22px; }
+QPushButton#btnLogin:hover { background: #1B466F; }
+QPushButton#btnBack { background: transparent; color: #245A91; border: none; text-align: left; padding: 4px 0px; }
+QPushButton#btnBack:hover { color: #173B60; text-decoration: underline; }
+QCheckBox#chkRememberEmail { color: #475569; spacing: 7px; }
+QLabel#lblError { color: #B42318; font-size: 9pt; }
+QLabel#lblFooter { color: #94A3B8; font-size: 8pt; }
+  </string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="spacing">
+    <number>14</number>
+   </property>
+   <property name="leftMargin">
+    <number>28</number>
+   </property>
+   <property name="topMargin">
+    <number>22</number>
+   </property>
+   <property name="rightMargin">
+    <number>28</number>
+   </property>
+   <property name="bottomMargin">
+    <number>18</number>
+   </property>
+   <item>
+    <widget class="QFrame" name="headerFrame">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>100</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>142</height>
+      </size>
+     </property>
+     <layout class="QVBoxLayout" name="headerLayout">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <property name="leftMargin">
+       <number>16</number>
+      </property>
+      <property name="topMargin">
+       <number>12</number>
+      </property>
+      <property name="rightMargin">
+       <number>16</number>
+      </property>
+      <property name="bottomMargin">
+       <number>12</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="lblHeaderTitle">
+        <property name="text">
+         <string>Отдел технического контроля</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblHeaderSubtitle">
+        <property name="text">
+         <string>Вход для сотрудников организации</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="loginCard">
+     <layout class="QVBoxLayout" name="cardLayout">
+      <property name="spacing">
+       <number>10</number>
+      </property>
+      <property name="leftMargin">
+       <number>24</number>
+      </property>
+      <property name="topMargin">
+       <number>20</number>
+      </property>
+      <property name="rightMargin">
+       <number>24</number>
+      </property>
+      <property name="bottomMargin">
+       <number>20</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="lblFormTitle">
+        <property name="text">
+         <string>Авторизация</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblFormSubtitle">
+        <property name="text">
+         <string>Используйте корпоративную электронную почту</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="topSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>8</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblEmail">
+        <property name="text">
+         <string>Корпоративная почта</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="editEmail">
+        <property name="placeholderText">
+         <string>name@elma.ru</string>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblPassword">
+        <property name="text">
+         <string>Пароль</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="passwordFrame">
+        <layout class="QHBoxLayout" name="passwordLayout">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLineEdit" name="editPassword">
+           <property name="echoMode">
+            <enum>QLineEdit::Password</enum>
+           </property>
+           <property name="placeholderText">
+            <string>Введите пароль</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnTogglePassword">
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="text">
+            <string>Показать</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="chkRememberEmail">
+        <property name="text">
+         <string>Запомнить корпоративную почту</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblError">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnLogin">
+        <property name="text">
+         <string>Войти в систему</string>
+        </property>
+        <property name="default">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="btnBack">
+     <property name="text">
+      <string>← Вернуться к выбору типа входа</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="footerSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>2</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QLabel" name="lblFooter">
+     <property name="text">
+      <string>СПбЦ «ЭЛМА» · Внутренняя система контроля качества</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

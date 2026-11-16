@@ -3,6 +3,8 @@ import os
 from PyQt6.QtWidgets import QApplication, QDialog
 from login import LoginWindow
 from main_window import MainWindow
+from client_window import ClientWindow
+from choose_login import ChooseLoginDialog
 from session import Session
 
 THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
@@ -29,14 +31,12 @@ def run_app():
         if Session.is_authenticated():
             user = Session.get_user()
             user_type = user.get("user_type", "employee") if user else "employee"
-            
+    
             if user_type == "client":
-                from client_window import ClientWindow
                 window = ClientWindow()
             else:
-                from main_window import MainWindow
                 window = MainWindow(app)
-            
+    
             window.show()
             app.exec()
             
@@ -45,11 +45,20 @@ def run_app():
             else:
                 break
         else:
+            # Сначала показываем выбор типа пользователя
+            choice = ChooseLoginDialog.get_choice()
+    
+            if choice is None:
+                # Пользователь закрыл окно выбора - выход из приложения
+                sys.exit(0)
+    
+            # Показываем окно входа
             login = LoginWindow()
             if login.exec() == QDialog.DialogCode.Accepted:
                 continue
             else:
-                sys.exit(0)
+                # Пользователь отменил вход - возвращаемся к выбору типа пользователя
+                continue
 
 if __name__ == "__main__":
     run_app()
