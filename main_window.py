@@ -48,6 +48,7 @@ class OrderDialog(QDialog):
         self.spinPrice.setRange(0, 999999)
         self.spinPrice.setDecimals(2)
         self.spinPrice.setSuffix(" руб.")
+        self.spinPrice.returnPressed.connect(self._add_service)
         form.addRow("Цена услуги:", self.spinPrice)
 
         self.btnAddService = QPushButton("Добавить услугу")
@@ -164,6 +165,7 @@ class ClientDialog(QDialog):
 
         self.editINN = QLineEdit()
         self.editINN.setPlaceholderText("ИНН (для юр. лиц)")
+        self.editINN.returnPressed.connect(self.accept)
         form.addRow("ИНН:", self.editINN)
 
         layout.addLayout(form)
@@ -225,6 +227,7 @@ class ResearchDialog(QDialog):
         self.dateResult = QDateEdit()
         self.dateResult.setDate(QDate.currentDate())
         self.dateResult.setCalendarPopup(True)
+        self.dateResult.returnPressed.connect(self.accept)
         form.addRow("Дата:", self.dateResult)
 
         layout.addLayout(form)
@@ -265,6 +268,7 @@ class ReportDialog(QDialog):
 
         self.editFilePath = QLineEdit()
         self.editFilePath.setPlaceholderText("Путь к файлу отчёта (опционально)")
+        self.editFilePath.returnPressed.connect(self.accept)
         form.addRow("Файл:", self.editFilePath)
 
         layout.addLayout(form)

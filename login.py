@@ -21,6 +21,7 @@ class LoginWindow(QDialog):
 
         self.ui.btnLogin.clicked.connect(self.login)
         self.ui.editLogin.returnPressed.connect(self.ui.editPassword.setFocus)
+        self.ui.editPassword.returnPressed.connect(self.login)
 
     def toggle_password(self):
         current_mode = self.ui.editPassword.echoMode()
