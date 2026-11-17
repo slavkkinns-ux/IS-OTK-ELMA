@@ -21,6 +21,8 @@ class ReportRepository(BaseRepository):
                     WHEN c.client_type = 'UL' THEN l.company_name 
                 END as client_name,
                 rr.result_value,
+                rr.conclusion,
+                DATE_FORMAT(rr.result_date, '%%d.%%m.%%Y') as result_date,
                 rr.research_id
             FROM order_services os
             JOIN orders o ON os.order_id = o.order_id

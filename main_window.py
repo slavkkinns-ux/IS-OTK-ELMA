@@ -488,6 +488,7 @@ class MainWindow(QMainWindow):
         self.ui.btnSaveResearchResult.clicked.connect(self._save_research)
         self.ui.btnClearResearchResult.clicked.connect(self._clear_research)
         self.ui.btnViewResearchResult.clicked.connect(self._view_research)
+        self.ui.tableResearchQueue.itemSelectionChanged.connect(self._show_research_details)
         self._load_research_queue()
 
     def _setup_reports_tab(self):
@@ -1027,6 +1028,8 @@ class MainWindow(QMainWindow):
         for row_idx, item in enumerate(research):
             item_order = QTableWidgetItem(str(item['order_id']))
             item_order.setData(Qt.ItemDataRole.UserRole, item['order_service_id'])
+            item_order.setData(Qt.ItemDataRole.UserRole + 1, item['conclusion'] or '')
+            item_order.setData(Qt.ItemDataRole.UserRole + 2, item['result_date'] or '')
             item_order.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableResearchQueue.setItem(row_idx, 0, item_order)
 
@@ -1044,6 +1047,57 @@ class MainWindow(QMainWindow):
             item_result.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableResearchQueue.setItem(row_idx, 4, item_result)
         self.ui.tableResearchQueue.resizeRowsToContents()
+
+    def _show_research_details(self):
+        """Отображает информацию о выбранном исследовании в правой панели."""
+        row = self.ui.tableResearchQueue.currentRow()
+        if row < 0:
+            # Очищаем панель деталей
+            self.ui.lblResearchOrderValue.setText('—')
+            self.ui.lblResearchVesselValue.setText('—')
+            self.ui.lblResearchClientValue.setText('—')
+            self.ui.lblResearchServiceValue.setText('—')
+            self.ui.lblResultValue.setText('—')
+            self.ui.lblConclusion.setText('—')
+            self.ui.lblResultDate.setText('—')
+            self.ui.editResultValue.clear()
+            self.ui.editConclusion.clear()
+            self.ui.dateResultDate.setDate(QDate.currentDate())
+            return
+
+        item_order = self.ui.tableResearchQueue.item(row, 0)
+        item_vessel = self.ui.tableResearchQueue.item(row, 1)
+        item_service = self.ui.tableResearchQueue.item(row, 2)
+        item_client = self.ui.tableResearchQueue.item(row, 3)
+        item_result = self.ui.tableResearchQueue.item(row, 4)
+
+        order_service_id = item_order.data(Qt.ItemDataRole.UserRole)
+        conclusion = item_order.data(Qt.ItemDataRole.UserRole + 1) or ''
+        result_date = item_order.data(Qt.ItemDataRole.UserRole + 2) or ''
+
+        self.ui.lblResearchOrderValue.setText(item_order.text())
+        self.ui.lblResearchVesselValue.setText(item_vessel.text() if item_vessel else '—')
+        self.ui.lblResearchServiceValue.setText(item_service.text() if item_service else '—')
+        self.ui.lblResearchClientValue.setText(item_client.text() if item_client else '—')
+
+        result_value = item_result.text() if item_result else 'Не выполнено'
+        if result_value == 'Не выполнено':
+            result_value = ''
+        self.ui.lblResultValue.setText(result_value or '—')
+        self.ui.editResultValue.setText(result_value)
+
+        self.ui.lblConclusion.setText(conclusion or '—')
+        self.ui.editConclusion.setText(conclusion)
+
+        if result_date:
+            self.ui.lblResultDate.setText(result_date)
+            try:
+                self.ui.dateResultDate.setDate(QDate.fromString(result_date, 'dd.MM.yyyy'))
+            except Exception:
+                self.ui.dateResultDate.setDate(QDate.currentDate())
+        else:
+            self.ui.lblResultDate.setText('—')
+            self.ui.dateResultDate.setDate(QDate.currentDate())
 
     def _load_reports_combo(self):
         orders = order_repo.get_all_orders()
