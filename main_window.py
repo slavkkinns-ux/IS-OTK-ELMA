@@ -600,7 +600,7 @@ class MainWindow(QMainWindow):
 
     def _reset_order_filters(self):
         self.ui.editOrderSearch.clear()
-        self.comboOrderStatus.setCurrentIndex(0)
+        self.ui.comboOrderStatus.setCurrentIndex(0)
         self._load_orders_table()
 
     def _refresh_orders_page(self):
