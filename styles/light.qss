@@ -1,14 +1,34 @@
 /* Светлая тема оформления IS-OTK-ELMA */
 
-/* Основной фон окон — не затрагивает дочерние виджеты */
-QMainWindow, QDialog {
+/* Основной фон окон — светлый для всех виджетов */
+QMainWindow#MainWindow, QMainWindow, QDialog, QWidget {
     background-color: #f5f5f5;
 }
 
-/* Шрифт по умолчанию без фона — чтобы не перекрывать заголовки */
+/* Явный фон для центральных контейнеров MainWindow */
+QWidget#centralWidget {
+    background-color: #f5f5f5;
+}
+QWidget#widget {
+    background-color: #f5f5f5;
+}
+QFrame#contentFrame {
+    background-color: #F4F7FB;
+}
+
+/* Шрифт по умолчанию */
 QWidget {
     color: #000000;
     font-family: "Segoe UI", Arial, sans-serif;
+}
+
+/* Заголовки и надписи — прозрачный фон, чтобы не перекрывать дизайн */
+QLabel {
+    background: transparent;
+}
+
+/* Фреймы — прозрачный фон, чтобы не перекрывать инлайн-стили из .ui файлов */
+QFrame {
     background: transparent;
 }
 
