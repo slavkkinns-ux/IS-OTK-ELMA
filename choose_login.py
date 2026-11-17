@@ -83,25 +83,21 @@ class ChooseLoginDialog(QDialog):
 
     def _choose_employee(self):
         """Открывает окно входа сотрудника."""
-        self.hide()
-        login = EmployeeLoginWindow()
+        login = EmployeeLoginWindow(self)
         result = login.exec()
-        self.show()
         if result == QDialog.DialogCode.Accepted:
             self.choice = "employee"
             self.accept()
-        # Если нажат «Назад» — возвращаемся к выбору типа входа
+        # Если нажат «Назад» — возвращаемся к выбору типа входа (диалог остаётся открытым)
 
     def _choose_client(self):
         """Открывает окно входа клиента."""
-        self.hide()
-        login = ClientLoginWindow()
+        login = ClientLoginWindow(self)
         result = login.exec()
-        self.show()
         if result == QDialog.DialogCode.Accepted:
             self.choice = "client"
             self.accept()
-        # Если нажат «Назад» — возвращаемся к выбору типа входа
+        # Если нажат «Назад» — возвращаемся к выбору типа входа (диалог остаётся открытым)
 
     @staticmethod
     def get_choice():

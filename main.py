@@ -9,6 +9,9 @@ from session import Session
 
 def run_app():
     app = QApplication(sys.argv)
+    # Не завершать приложение при закрытии промежуточных окон
+    # (например, окна входа при возврате к выбору типа входа)
+    app.setQuitOnLastWindowClosed(False)
 
     while True:
         Session.init()
