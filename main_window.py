@@ -165,61 +165,61 @@ class ClientDialog(QDialog):
         self.editEmail.setPlaceholderText("email@example.com")
         self.form.addRow("Email:", self.editEmail)
 
-        # Поля для ФЛ (скрыты по умолчанию)
+        # Поля для ФЛ (добавляем все в форму, потом скрываем лишние)
         self.editFullName = QLineEdit()
         self.editFullName.setPlaceholderText("Иванов Иван Иванович")
-        self.editFullName.hide()
+        self.form.addRow("ФИО:", self.editFullName)
 
         self.editBirthDate = QDateEdit()
         self.editBirthDate.setCalendarPopup(True)
         self.editBirthDate.setDate(QDate.currentDate().addYears(-30))
-        self.editBirthDate.hide()
+        self.form.addRow("Дата рождения:", self.editBirthDate)
 
         self.editPassportSeries = QLineEdit()
         self.editPassportSeries.setPlaceholderText("1234")
         self.editPassportSeries.setMaxLength(4)
-        self.editPassportSeries.hide()
+        self.form.addRow("Серия паспорта:", self.editPassportSeries)
 
         self.editPassportNumber = QLineEdit()
         self.editPassportNumber.setPlaceholderText("567890")
         self.editPassportNumber.setMaxLength(6)
-        self.editPassportNumber.hide()
+        self.form.addRow("Номер паспорта:", self.editPassportNumber)
 
-        # Поля для ЮЛ (скрыты по умолчанию)
+        # Поля для ЮЛ (добавляем все в форму, потом скрываем лишние)
         self.editCompanyName = QLineEdit()
         self.editCompanyName.setPlaceholderText("ООО «ТехноСервис»")
-        self.editCompanyName.hide()
+        self.form.addRow("Название компании:", self.editCompanyName)
 
         self.editAddress = QLineEdit()
         self.editAddress.setPlaceholderText("г. Санкт-Петербург, ул. Примерная, д. 1")
-        self.editAddress.hide()
+        self.form.addRow("Юридический адрес:", self.editAddress)
 
         self.editINN = QLineEdit()
         self.editINN.setPlaceholderText("1234567890")
         self.editINN.setMaxLength(12)
-        self.editINN.hide()
+        self.form.addRow("ИНН:", self.editINN)
 
         self.editKPP = QLineEdit()
         self.editKPP.setPlaceholderText("123456789")
         self.editKPP.setMaxLength(9)
-        self.editKPP.hide()
+        self.form.addRow("КПП:", self.editKPP)
 
         self.editCheckingAccount = QLineEdit()
         self.editCheckingAccount.setPlaceholderText("40702810123456789012")
-        self.editCheckingAccount.hide()
+        self.form.addRow("Расчётный счёт:", self.editCheckingAccount)
 
         self.editBIK = QLineEdit()
         self.editBIK.setPlaceholderText("044525225")
         self.editBIK.setMaxLength(9)
-        self.editBIK.hide()
+        self.form.addRow("БИК:", self.editBIK)
 
         self.editDirectorName = QLineEdit()
         self.editDirectorName.setPlaceholderText("Петров Пётр Петрович")
-        self.editDirectorName.hide()
+        self.form.addRow("Директор:", self.editDirectorName)
 
         self.editContactPerson = QLineEdit()
         self.editContactPerson.setPlaceholderText("Иванов Иван Иванович")
-        self.editContactPerson.hide()
+        self.form.addRow("Контактное лицо:", self.editContactPerson)
 
         self.layout.addLayout(self.form)
 
@@ -252,13 +252,6 @@ class ClientDialog(QDialog):
         for w in [self.editFullName, self.editBirthDate, self.editPassportSeries,
                   self.editPassportNumber]:
             w.show()
-        # Пересоздаём строки формы для ФЛ (после общих 4 полей)
-        while self.form.rowCount() > 4:
-            self.form.removeRow(4)
-        self.form.addRow("ФИО:", self.editFullName)
-        self.form.addRow("Дата рождения:", self.editBirthDate)
-        self.form.addRow("Серия паспорта:", self.editPassportSeries)
-        self.form.addRow("Номер паспорта:", self.editPassportNumber)
 
     def _show_ul_fields(self):
         """Показывает поля для юридического лица, скрывает поля для физ. лица."""
@@ -271,17 +264,6 @@ class ClientDialog(QDialog):
                   self.editCheckingAccount, self.editBIK, self.editDirectorName,
                   self.editContactPerson]:
             w.show()
-        # Пересоздаём строки формы для ЮЛ (после общих 4 полей)
-        while self.form.rowCount() > 4:
-            self.form.removeRow(4)
-        self.form.addRow("Название компании:", self.editCompanyName)
-        self.form.addRow("Юридический адрес:", self.editAddress)
-        self.form.addRow("ИНН:", self.editINN)
-        self.form.addRow("КПП:", self.editKPP)
-        self.form.addRow("Расчётный счёт:", self.editCheckingAccount)
-        self.form.addRow("БИК:", self.editBIK)
-        self.form.addRow("Директор:", self.editDirectorName)
-        self.form.addRow("Контактное лицо:", self.editContactPerson)
 
     def _on_type_changed(self, index):
         """Переключает видимость полей в зависимости от типа клиента."""
