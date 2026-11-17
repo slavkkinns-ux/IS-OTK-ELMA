@@ -1,10 +1,11 @@
 import sys
 import os
 from PyQt6.QtWidgets import QApplication, QDialog, QStyleFactory
-from login import LoginWindow
 from main_window import MainWindow
 from client_window import ClientWindow
 from choose_login import ChooseLoginDialog
+from employee_login import EmployeeLoginDialog
+from client_login import ClientLoginDialog
 from session import Session
 
 THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
@@ -20,16 +21,10 @@ def load_theme(app, theme_name="light"):
         pass
 
 def run_app():
-    # Устанавливаем стиль Fusion ДО создания QApplication
-    # Это унифицирует рендеринг между Qt Designer и запуском
     os.environ["QT_QPA_PLATFORMTHEME"] = ""
     
     app = QApplication(sys.argv)
-    
-    # Применяем стиль Fusion
     app.setStyle(QStyleFactory.create("Fusion"))
-    
-    # Загружаем тему (QSS поверх Fusion)
     load_theme(app, "light")
     
     while True:
@@ -52,21 +47,27 @@ def run_app():
             else:
                 break
         else:
-            # Сначала показываем выбор типа пользователя
+            # 1. Показываем выбор типа входа
             choice = ChooseLoginDialog.get_choice()
             
             if choice is None:
-                # Пользователь закрыл окно выбора - выход из приложения
                 sys.exit(0)
             
-            # Показываем окно входа
-            login = LoginWindow()
+            # 2. Показываем соответствующий диалог входа
+            while True:
+                if choice == "employee":
+                    login_dialog = EmployeeLoginDialog()
+                else:
+                    login_dialog = ClientLoginDialog()
+                
+                result = login_dialog.exec()
+                
+                if result == QDialog.DialogCode.Accepted:
+                    break
+                else:
+                    break
             
-            if login.exec() == QDialog.DialogCode.Accepted:
-                continue
-            else:
-                # Пользователь отменил вход - возвращаемся к выбору типа пользователя
-                continue
+            continue
 
 if __name__ == "__main__":
     run_app()
