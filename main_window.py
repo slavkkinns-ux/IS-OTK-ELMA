@@ -190,8 +190,6 @@ class ClientDialog(QDialog):
         self.editPassportNumber.setMaxLength(6)
         flLayout.addWidget(self.editPassportNumber)
 
-        self.form.addRow("Данные ФЛ:", self.flContainer)
-
         # Контейнер для полей ЮЛ (скрывается/показывается целиком)
         self.ulContainer = QWidget()
         ulLayout = QVBoxLayout(self.ulContainer)
@@ -233,9 +231,9 @@ class ClientDialog(QDialog):
         self.editContactPerson.setPlaceholderText("Иванов Иван Иванович")
         ulLayout.addWidget(self.editContactPerson)
 
-        self.form.addRow("Данные ЮЛ:", self.ulContainer)
-
         self.layout.addLayout(self.form)
+        self.layout.addWidget(self.flContainer)
+        self.layout.addWidget(self.ulContainer)
 
         # Кнопки
         self.btnBox = QHBoxLayout()
@@ -263,6 +261,8 @@ class ClientDialog(QDialog):
         else:  # Физическое лицо
             self.flContainer.show()
             self.ulContainer.hide()
+        # Принудительно пересчитываем размеры диалога
+        self.adjustSize()
 
     def _fill_data(self, data):
         client_type = data.get('client_type', 'FL')
