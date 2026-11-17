@@ -1057,12 +1057,11 @@ class MainWindow(QMainWindow):
             self.ui.lblResearchVesselValue.setText('—')
             self.ui.lblResearchClientValue.setText('—')
             self.ui.lblResearchServiceValue.setText('—')
-            self.ui.lblResultValue.setText('—')
-            self.ui.lblConclusion.setText('—')
-            self.ui.lblResultDate.setText('—')
-            self.ui.editResultValue.clear()
-            self.ui.editConclusion.clear()
-            self.ui.dateResultDate.setDate(QDate.currentDate())
+            self.ui.editResearchResultValue.clear()
+            self.ui.textResearchConclusion.clear()
+            self.ui.lblResearchDate.setText('—')
+            self.ui.dateResearchResult.setDate(QDate.currentDate())
+            self.ui.comboResearchEmployee.setCurrentIndex(-1)
             return
 
         item_order = self.ui.tableResearchQueue.item(row, 0)
@@ -1083,21 +1082,33 @@ class MainWindow(QMainWindow):
         result_value = item_result.text() if item_result else 'Не выполнено'
         if result_value == 'Не выполнено':
             result_value = ''
-        self.ui.lblResultValue.setText(result_value or '—')
-        self.ui.editResultValue.setText(result_value)
+        self.ui.editResearchResultValue.setText(result_value)
 
-        self.ui.lblConclusion.setText(conclusion or '—')
-        self.ui.editConclusion.setText(conclusion)
+        self.ui.textResearchConclusion.setText(conclusion)
 
         if result_date:
-            self.ui.lblResultDate.setText(result_date)
+            self.ui.lblResearchDate.setText(result_date)
             try:
-                self.ui.dateResultDate.setDate(QDate.fromString(result_date, 'dd.MM.yyyy'))
+                self.ui.dateResearchResult.setDate(QDate.fromString(result_date, 'dd.MM.yyyy'))
             except Exception:
-                self.ui.dateResultDate.setDate(QDate.currentDate())
+                self.ui.dateResearchResult.setDate(QDate.currentDate())
         else:
-            self.ui.lblResultDate.setText('—')
-            self.ui.dateResultDate.setDate(QDate.currentDate())
+            self.ui.lblResearchDate.setText('—')
+            self.ui.dateResearchResult.setDate(QDate.currentDate())
+
+        # Заполняем выпадающий список сотрудников
+        self._load_research_employees()
+
+    def _load_research_employees(self):
+        """Заполняет выпадающий список сотрудников для исследования."""
+        query = "SELECT employee_id, full_name FROM employees WHERE is_active = 1 ORDER BY full_name"
+        employees = order_repo.execute_query(query)
+        self.ui.comboResearchEmployee.blockSignals(True)
+        self.ui.comboResearchEmployee.clear()
+        if employees:
+            for e in employees:
+                self.ui.comboResearchEmployee.addItem(e['full_name'], e['employee_id'])
+        self.ui.comboResearchEmployee.blockSignals(False)
 
     def _load_reports_combo(self):
         orders = order_repo.get_all_orders()
