@@ -470,7 +470,7 @@ class MainWindow(QMainWindow):
         self._load_orders_table()
 
     def _setup_clients_tab(self):
-        self.ui.btnRefreshClients.clicked.connect(self._refresh_clients_page)
+        self.ui.brnRefreshClients.clicked.connect(self._refresh_clients_page)
         self.ui.btnAddClient.clicked.connect(self._add_client)
         self.ui.btnEditClient.clicked.connect(self._edit_client)
         self.ui.btnViewClient.clicked.connect(self._view_client)
