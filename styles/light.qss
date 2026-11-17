@@ -1,13 +1,18 @@
-QWidget {
-    background-color: #ffffff;
-    color: #000000;
-    font-family: "Segoe UI", Arial, sans-serif;
-}
+/* Светлая тема оформления IS-OTK-ELMA */
 
+/* Основной фон окон — не затрагивает дочерние виджеты */
 QMainWindow, QDialog {
     background-color: #f5f5f5;
 }
 
+/* Шрифт по умолчанию без фона — чтобы не перекрывать заголовки */
+QWidget {
+    color: #000000;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: transparent;
+}
+
+/* Кнопки */
 QPushButton {
     background-color: #3498db;
     color: white;
@@ -25,6 +30,7 @@ QPushButton:pressed {
     background-color: #1c5980;
 }
 
+/* Поля ввода */
 QLineEdit, QTextEdit, QPlainTextEdit {
     background-color: #ffffff;
     border: 1px solid #cccccc;
@@ -37,10 +43,22 @@ QLineEdit:focus, QTextEdit:focus {
     border: 1px solid #3498db;
 }
 
+/* Таблицы */
 QTableWidget {
     background-color: #ffffff;
     gridline-color: #e0e0e0;
     border: 1px solid #cccccc;
+}
+
+QTableWidget::item {
+    background: transparent;
+    color: #000000;
+    padding: 4px;
+}
+
+QTableWidget::item:selected {
+    background-color: #3498db;
+    color: white;
 }
 
 QHeaderView::section {
@@ -51,8 +69,9 @@ QHeaderView::section {
     font-weight: bold;
 }
 
-QFrame#sidebar { 
-    background-color: #2c3e50; 
+/* Боковая панель */
+QFrame#sidebar {
+    background-color: #2c3e50;
 }
 
 QFrame#sidebar QPushButton {
@@ -69,12 +88,39 @@ QFrame#sidebar QPushButton:hover {
 
 QFrame#sidebar QPushButton:checked {
     background-color: #3498db;
-}
-
-QFrame#sidebar QPushButton:checked {
-    background-color: #3498db;
     color: #ffffff;
     font-weight: bold;
+}
+
+/* Карточки статистики и контейнеры */
+QFrame#cardOrders,
+QFrame#cardActiveOrders,
+QFrame#cardClients,
+QFrame#cardPendingChecks,
+QFrame#cardTotalOrders,
+QFrame#cardOrdersInProgress,
+QFrame#cardOrdersPending,
+QFrame#cardOrdersCompleted,
+QFrame#cardTotalClients,
+QFrame#cardActiveClients,
+QFrame#cardClientsWithOrders,
+QFrame#statsCard,
+QFrame#statsCard2,
+QFrame#statsCard3,
+QFrame#profileCard {
+    background-color: #ffffff;
+    border: 1px solid #DCE5EF;
+    border-radius: 10px;
+}
+
+/* Заголовки и надписи — прозрачный фон, чтобы не перекрывать дизайн */
+QLabel {
+    background: transparent;
+}
+
+QLabel#lblSidebarLogo {
+    color: #FFFFFF;
+    background-color: #245A91;
 }
 
 /* Окно выбора типа входа */
@@ -154,4 +200,37 @@ QDialog#ChooseLoginDialog QPushButton#btnClientLogin:hover {
 QDialog#ChooseLoginDialog QLabel#lblFooter {
     color: rgb(162, 162, 162);
     background: transparent;
+}
+
+/* Чекбоксы */
+QCheckBox {
+    background: transparent;
+    color: #000000;
+    spacing: 7px;
+}
+
+/* ComboBox */
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #000000;
+}
+
+QComboBox:focus {
+    border: 1px solid #3498db;
+}
+
+/* Групповые рамки и separators */
+QFrame {
+    background: transparent;
+    border: none;
+}
+
+QFrame[frameShape="4"] { /* HLine */
+    background-color: #e0e0e0;
+    border: none;
+    max-height: 1px;
+    min-height: 1px;
 }
