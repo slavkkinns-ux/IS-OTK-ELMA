@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6 import QtCore, QtGui, QtWidgets
 from ui.main_window_ui import Ui_MainWindow
 from session import Session, Role
-from db import Database
+from db import client_repo, order_repo, report_repo
 
 class MainWindow(QMainWindow):
     def __init__(self, app):
@@ -192,8 +192,7 @@ class MainWindow(QMainWindow):
         self._load_clients_stats()
 
     def _load_clients_to_table(self):
-        db = Database()
-        clients = db.get_all_clients()
+        clients = client_repo.get_all_clients()
         
         self.ui.tableClients.setRowCount(0)
         
@@ -291,8 +290,7 @@ class MainWindow(QMainWindow):
         self._load_clients_stats()
     
     def _load_home_stats(self):
-        db = Database()
-        stats = db.get_home_stats()
+        stats = order_repo.get_home_stats()
         if not stats:
             return
         self.ui.lblOrderValue.setText(str(stats['total_orders']))
@@ -301,8 +299,7 @@ class MainWindow(QMainWindow):
         self.ui.lblPendingChecksValue.setText(str(stats['pending_checks']))
 
     def _load_orders_stats(self):
-        db = Database()
-        stats = db.get_orders_stats()
+        stats = order_repo.get_orders_stats()
         if not stats:
             return
         self.ui.lblTotalOrdersValue.setText(str(stats['total']))
@@ -311,8 +308,7 @@ class MainWindow(QMainWindow):
         self.ui.lblOrdersCompletedValue.setText(str(stats['completed']))
 
     def _load_clients_stats(self):
-        db = Database()
-        stats = db.get_clients_stats()
+        stats = client_repo.get_clients_stats()
         if not stats:
             return
         self.ui.lblcardTotalClientsValue.setText(str(stats['total_clients']))
@@ -320,8 +316,7 @@ class MainWindow(QMainWindow):
         self.ui.lblcardClientsWithOrdersValue.setText(str(stats['clients_with_orders']))
 
     def _load_recent_orders(self):
-        db = Database()
-        orders = db.get_recent_orders(limit=5)
+        orders = order_repo.get_recent_orders(limit=5)
         
         self.ui.tableRecentOrders.setRowCount(0)
         
@@ -347,8 +342,7 @@ class MainWindow(QMainWindow):
             self.ui.tableRecentOrders.setItem(row_idx, 3, item_status)
 
     def _load_orders_table(self):
-        db = Database()
-        orders = db.get_all_orders()
+        orders = order_repo.get_all_orders()
         
         self.ui.tableOrders.setRowCount(0)
         
@@ -384,8 +378,7 @@ class MainWindow(QMainWindow):
             self.ui.tableOrders.setItem(row_idx, 6, item_actions)
 
     def _load_research_queue(self):
-        db = Database()
-        research = db.get_research_queue()
+        research = report_repo.get_research_queue()
         
         self.ui.tableResearchQueue.setRowCount(0)
         
@@ -415,8 +408,7 @@ class MainWindow(QMainWindow):
         self.ui.tableResearchQueue.resizeRowsToContents()
 
     def _load_reports_combo(self):
-        db = Database()
-        orders = db.get_all_orders()
+        orders = order_repo.get_all_orders()
 
         self.ui.comboreportsOrder.blockSignals(True)
         self.ui.comboreportsOrder.clear()
@@ -433,8 +425,7 @@ class MainWindow(QMainWindow):
             self._load_report_research_table(order_id)
 
     def _load_report_research_table(self, order_id):
-        db = Database()
-        rows = db.get_report_research(order_id)
+        rows = report_repo.get_report_research(order_id)
 
         self.ui.tableReportResearch.setRowCount(0)
         if not rows:
@@ -448,8 +439,7 @@ class MainWindow(QMainWindow):
         self.ui.tableReportResearch.resizeRowsToContents()
 
     def _load_recent_reports(self):
-        db = Database()
-        rows = db.get_recent_reports()
+        rows = report_repo.get_recent_reports()
 
         self.ui.tableRecentReports.setRowCount(0)
         if not rows:

@@ -76,3 +76,82 @@ QFrame#sidebar QPushButton:checked {
     color: #ffffff;
     font-weight: bold;
 }
+
+/* Окно выбора типа входа */
+QDialog#ChooseLoginDialog {
+    background-color: #F4F7FA;
+}
+
+QDialog#ChooseLoginDialog QFrame#headerFrame {
+    background-color: #173B60;
+    border-radius: 14px;
+}
+
+QDialog#ChooseLoginDialog QLabel#lblLogo,
+QDialog#ChooseLoginDialog QLabel#lblWelcome {
+    color: white;
+    font-weight: bold;
+    background: transparent;
+}
+
+QDialog#ChooseLoginDialog QLabel#lblSystemName,
+QDialog#ChooseLoginDialog QLabel#lblSubtitle {
+    color: #D7E7F6;
+    background: transparent;
+}
+
+QDialog#ChooseLoginDialog QFrame#employeeCard,
+QDialog#ChooseLoginDialog QFrame#clientCard {
+    background-color: #ffffff;
+    border: 1px solid #DCE4EC;
+    border-radius: 12px;
+}
+
+QDialog#ChooseLoginDialog QFrame#employeeCard:hover,
+QDialog#ChooseLoginDialog QFrame#clientCard:hover {
+    background-color: #F3F8FC;
+    border: 1px solid #245A91;
+}
+
+QDialog#ChooseLoginDialog QLabel#lblEmployeeIcon,
+QDialog#ChooseLoginDialog QLabel#lblClientIcon {
+    background: transparent;
+    min-width: 48px;
+    min-height: 48px;
+}
+
+QDialog#ChooseLoginDialog QLabel#lblEmployeeTitle,
+QDialog#ChooseLoginDialog QLabel#lblClientTitle {
+    color: #173B60;
+    background: transparent;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+QDialog#ChooseLoginDialog QLabel#lblEmployeeDescription,
+QDialog#ChooseLoginDialog QLabel#lblClientDescription {
+    color: #5C6B7A;
+    background: transparent;
+    font-size: 12px;
+}
+
+QDialog#ChooseLoginDialog QPushButton#btnEmployeeLogin,
+QDialog#ChooseLoginDialog QPushButton#btnClientLogin {
+    background-color: #245A91;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    padding: 11px 8px;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+QDialog#ChooseLoginDialog QPushButton#btnEmployeeLogin:hover,
+QDialog#ChooseLoginDialog QPushButton#btnClientLogin:hover {
+    background-color: #1B466F;
+}
+
+QDialog#ChooseLoginDialog QLabel#lblFooter {
+    color: rgb(162, 162, 162);
+    background: transparent;
+}

@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QDialog, QLineEdit
 from PyQt6.QtGui import QIcon
 from ui.login_ui import Ui_LoginDialog
 from session import Session, Role
-from db import Database
+from db import base_repo, client_repo
 from config import DB_CONFIG
 import hashlib
 
@@ -47,8 +47,7 @@ class LoginWindow(QDialog):
             return
 
         try:
-            db = Database()
-            db.connect()
+            base_repo.connect()
             password_hash = hashlib.sha256(password.encode()).hexdigest()
             
             query_employee = """
@@ -56,7 +55,7 @@ class LoginWindow(QDialog):
                 FROM employees 
                 WHERE login = %s AND password_hash = %s AND is_active = 1
             """
-            result_employee = db.execute_query(query_employee, (login_text, password_hash))
+            result_employee = base_repo.execute_query(query_employee, (login_text, password_hash))
             
             if result_employee:
                 user = result_employee[0]
@@ -70,7 +69,7 @@ class LoginWindow(QDialog):
                 self.accept()
                 return
             
-            user_client = db.get_client_by_login(login_text, password_hash)
+            user_client = client_repo.get_client_by_login(login_text, password_hash)
             if user_client:
                 Session.set_user(
                     login=user_client['login'],

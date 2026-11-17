@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QMainWindow, QHeaderView, QMessageBox, QTableWidgetI
 from PyQt6.QtCore import Qt
 from ui.client_window_ui import Ui_ClientsWindow
 from session import Session
-from db import Database
+from db import client_repo
 
 class ClientWindow(QMainWindow):
     def __init__(self):
@@ -52,14 +52,14 @@ class ClientWindow(QMainWindow):
         self._load_profile()
 
     def _load_home_stats(self):
-        stats = Database().get_client_stats(Session.get_user_id())
+        stats = client_repo.get_client_stats(Session.get_user_id())
         if stats:
             self.ui.statValue.setText(str(stats.get('total_orders', 0)))
             self.ui.statValue1.setText(str(stats.get('active_orders', 0)))
             self.ui.statValue2.setText(str(stats.get('completed_orders', 0)))
 
     def _load_home_orders(self):
-        orders = Database().get_client_orders(Session.get_user_id(), limit=5)
+        orders = client_repo.get_client_orders(Session.get_user_id(), limit=5)
         self.ui.tableHomeOrders.setRowCount(len(orders))
         for row_idx, order in enumerate(orders):
             self.ui.tableHomeOrders.setItem(row_idx, 0, QTableWidgetItem(str(order.get('vessel_code', ''))))
@@ -70,7 +70,7 @@ class ClientWindow(QMainWindow):
             self.ui.tableHomeOrders.setItem(row_idx, 3, item)
 
     def _load_my_orders(self):
-        orders = Database().get_client_orders(Session.get_user_id())
+        orders = client_repo.get_client_orders(Session.get_user_id())
         self.ui.tableMyOrders.setRowCount(len(orders))
         for row_idx, order in enumerate(orders):
             self.ui.tableMyOrders.setItem(row_idx, 0, QTableWidgetItem(str(order.get('vessel_code', ''))))
@@ -83,7 +83,7 @@ class ClientWindow(QMainWindow):
             self.ui.tableMyOrders.setItem(row_idx, 5, item)
 
     def _load_results(self):
-        results = Database().get_client_results(Session.get_user_id())
+        results = client_repo.get_client_results(Session.get_user_id())
         self.ui.tableResults.setRowCount(len(results))
         for row_idx, res in enumerate(results):
             self.ui.tableResults.setItem(row_idx, 0, QTableWidgetItem(str(res.get('vessel_code', ''))))
@@ -94,7 +94,7 @@ class ClientWindow(QMainWindow):
             self.ui.tableResults.setItem(row_idx, 5, QTableWidgetItem(str(res.get('employee_name', ''))))
 
     def _load_documents(self):
-        reports = Database().get_client_reports(Session.get_user_id())
+        reports = client_repo.get_client_reports(Session.get_user_id())
         self.ui.tableDocuments.setRowCount(len(reports))
         for row_idx, rep in enumerate(reports):
             self.ui.tableDocuments.setItem(row_idx, 0, QTableWidgetItem(f"ОТЧ-{rep.get('report_id', 0):04d}"))
@@ -103,7 +103,7 @@ class ClientWindow(QMainWindow):
             self.ui.tableDocuments.setItem(row_idx, 3, QTableWidgetItem(str(rep.get('report_date', ''))))
 
     def _load_profile(self):
-        info = Database().get_client_info(Session.get_user_id())
+        info = client_repo.get_client_info(Session.get_user_id())
         if info:
             self.ui.lblProfileName.setText(info.get('name', 'Не указано'))
             self.ui.lblProfileContact.setText(info.get('contact_person', 'Не указано'))

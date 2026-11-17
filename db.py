@@ -1,368 +1,66 @@
-import pymysql
-from pymysql.cursors import DictCursor
-from config import DB_CONFIG
+"""Фасад доступа к базе данных.
+
+Импортирует и инициализирует специализированные репозитории.
+Доменные выборки выполняются через client_repo, order_repo и report_repo.
+Низкоуровневые connect, execute_query и execute_insert остаются на фасаде
+и на base_repo.
+"""
+
+from repositories.base_repository import BaseRepository
+from repositories.client_repository import ClientRepository
+from repositories.order_repository import OrderRepository
+from repositories.report_repository import ReportRepository
+
 
 class Database:
+    """Синглтон-фасад над репозиториями базы данных."""
+
     _instance = None
-    _connection = None
 
     def __new__(cls):
+        """Создаёт единственный экземпляр и привязывает к нему репозитории."""
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            instance = super().__new__(cls)
+            instance.base_repo = BaseRepository()
+            instance.client_repo = ClientRepository()
+            instance.order_repo = OrderRepository()
+            instance.report_repo = ReportRepository()
+            cls._instance = instance
         return cls._instance
 
     def connect(self):
-        if self._connection and self._connection.open:
-            return
-        
-        try:
-            self._connection = pymysql.connect(
-                host=DB_CONFIG['host'],
-                user=DB_CONFIG['user'],
-                password=DB_CONFIG['password'],
-                database=DB_CONFIG['database'],
-                cursorclass=DictCursor,
-                charset='utf8mb4'
-            )
-        except pymysql.Error as e:
-            print(f"Ошибка подключения к БД: {e}")
-            raise
+        """Открывает соединение с базой данных."""
+        self.base_repo.connect()
 
     def get_connection(self):
-        if not self._connection or not self._connection.open:
-            self.connect()
-        return self._connection
+        """Возвращает активное соединение, при необходимости открывая его."""
+        return self.base_repo.get_connection()
 
     def execute_query(self, query, params=None):
-        connection = self.get_connection()
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(query, params)
-                connection.commit()
-                return cursor.fetchall()
-        except pymysql.Error as e:
-            print(f"Ошибка выполнения запроса: {e}")
-            connection.rollback()
-            raise
+        """Выполняет SQL-запрос и возвращает все строки.
+
+        Args:
+            query: SQL-запрос с плейсхолдерами %s.
+            params: Параметры запроса.
+        """
+        return self.base_repo.execute_query(query, params)
 
     def execute_insert(self, query, params=None):
-        connection = self.get_connection()
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(query, params)
-                connection.commit()
-                return cursor.lastrowid
-        except pymysql.Error as e:
-            print(f"Ошибка вставки: {e}")
-            connection.rollback()
-            raise
+        """Выполняет INSERT и возвращает идентификатор новой строки.
 
-    def get_all_clients(self):
-        connection = self.get_connection()
-        try:
-            with connection.cursor() as cursor:
-                query = """
-                    SELECT 
-                        c.client_id,
-                        c.client_type,
-                        c.phone,
-                        c.email,
-                        CASE 
-                            WHEN c.client_type = 'FL' THEN i.full_name 
-                            WHEN c.client_type = 'UL' THEN l.company_name 
-                        END as name,
-                        CASE 
-                            WHEN c.client_type = 'FL' THEN CONCAT(i.passport_series, ' ', i.passport_number)
-                            WHEN c.client_type = 'UL' THEN l.inn 
-                        END as details,
-                        CASE 
-                            WHEN c.client_type = 'FL' THEN i.full_name
-                            WHEN c.client_type = 'UL' THEN l.contact_person 
-                        END as contact_person
-                    FROM clients c
-                    LEFT JOIN individuals i ON c.client_id = i.client_id
-                    LEFT JOIN legal_entities l ON c.client_id = l.client_id
-                    ORDER BY c.client_id DESC
-                """
-                cursor.execute(query)
-                return cursor.fetchall()
-        except pymysql.Error as e:
-            print(f"Ошибка получения клиентов: {e}")
-            return []
+        Args:
+            query: SQL-запрос с плейсхолдерами %s.
+            params: Параметры запроса.
+        """
+        return self.base_repo.execute_insert(query, params)
 
     def close(self):
-        if self._connection and self._connection.open:
-            self._connection.close()
+        """Закрывает соединение с базой данных."""
+        self.base_repo.close()
 
-    def get_home_stats(self):
-        query = """
-            SELECT
-                (SELECT COUNT(*) FROM orders) AS total_orders,
-                (SELECT COUNT(*) FROM orders WHERE status <> 'Завершён') AS active_orders,
-                (SELECT COUNT(*) FROM clients) AS total_clients,
-                (SELECT COUNT(*) FROM orders WHERE status = 'Ожидает контроля') AS pending_checks
-        """
-        try:
-            result = self.execute_query(query)
-            return result[0] if result else None
-        except pymysql.Error:
-            return None
 
-    def get_orders_stats(self):
-        query = """
-            SELECT
-                (SELECT COUNT(*) FROM orders) AS total,
-                (SELECT COUNT(*) FROM orders WHERE status = 'В работе') AS in_progress,
-                (SELECT COUNT(*) FROM orders WHERE status = 'Ожидает контроля') AS pending,
-                (SELECT COUNT(*) FROM orders WHERE status = 'Завершён') AS completed
-        """
-        try:
-            result = self.execute_query(query)
-            return result[0] if result else None
-        except pymysql.Error:
-            return None
-
-    def get_clients_stats(self):
-        query = """
-            SELECT
-                (SELECT COUNT(*) FROM clients) AS total_clients,
-                (SELECT COUNT(DISTINCT client_id) FROM orders WHERE status <> 'Завершён') AS active_clients,
-                (SELECT COUNT(DISTINCT client_id) FROM orders) AS clients_with_orders
-        """
-        try:
-            result = self.execute_query(query)
-            return result[0] if result else None
-        except pymysql.Error:
-            return None
-
-    def get_recent_orders(self, limit=5):
-        query = f"""
-            SELECT 
-                o.vessel_code,
-                CASE 
-                    WHEN c.client_type = 'FL' THEN i.full_name 
-                    WHEN c.client_type = 'UL' THEN l.company_name 
-                END as client_name,
-                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
-                o.status
-            FROM orders o
-            LEFT JOIN clients c ON o.client_id = c.client_id
-            LEFT JOIN individuals i ON c.client_id = i.client_id
-            LEFT JOIN legal_entities l ON c.client_id = l.client_id
-            ORDER BY o.order_date DESC
-            LIMIT {int(limit)}
-        """
-        try:
-            return self.execute_query(query)
-        except pymysql.Error as e:
-            print(f"Ошибка в get_recent_orders: {e}")
-            return []
-
-    def get_all_orders(self):
-        query = """
-            SELECT 
-                o.order_id,
-                o.vessel_code,
-                CASE 
-                    WHEN c.client_type = 'FL' THEN i.full_name 
-                    WHEN c.client_type = 'UL' THEN l.company_name 
-                END as client_name,
-                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
-                e.full_name as employee_name,
-                o.status,
-                NULL as completion_date
-            FROM orders o
-            LEFT JOIN clients c ON o.client_id = c.client_id
-            LEFT JOIN individuals i ON c.client_id = i.client_id
-            LEFT JOIN legal_entities l ON c.client_id = l.client_id
-            LEFT JOIN employees e ON o.employee_id = e.employee_id
-            ORDER BY o.order_date DESC
-        """
-        try:
-            return self.execute_query(query)
-        except pymysql.Error:
-            return []
-
-    def get_all_orders(self):
-        query = """
-            SELECT 
-                o.order_id,
-                o.vessel_code,
-                CASE 
-                    WHEN c.client_type = 'FL' THEN i.full_name 
-                    WHEN c.client_type = 'UL' THEN l.company_name 
-                END as client_name,
-                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
-                e.full_name as employee_name,
-                o.status,
-                NULL as completion_date
-            FROM orders o
-            LEFT JOIN clients c ON o.client_id = c.client_id
-            LEFT JOIN individuals i ON c.client_id = i.client_id
-            LEFT JOIN legal_entities l ON c.client_id = l.client_id
-            LEFT JOIN employees e ON o.employee_id = e.employee_id
-            ORDER BY o.order_date DESC
-        """
-        try:
-            return self.execute_query(query)
-        except pymysql.Error:
-            return []
-
-    def get_research_queue(self):
-        query = """
-            SELECT 
-                os.order_service_id,
-                o.order_id,
-                o.vessel_code,
-                s.service_name,
-                CASE 
-                    WHEN c.client_type = 'FL' THEN i.full_name 
-                    WHEN c.client_type = 'UL' THEN l.company_name 
-                END as client_name,
-                rr.result_value,
-                rr.research_id
-            FROM order_services os
-            JOIN orders o ON os.order_id = o.order_id
-            JOIN services s ON os.service_id = s.service_id
-            LEFT JOIN clients c ON o.client_id = c.client_id
-            LEFT JOIN individuals i ON c.client_id = i.client_id
-            LEFT JOIN legal_entities l ON c.client_id = l.client_id
-            LEFT JOIN research_results rr ON os.order_service_id = rr.order_service_id
-            ORDER BY o.order_date DESC
-        """
-        try:
-            return self.execute_query(query)
-        except pymysql.Error:
-            return []
-
-    def get_report_research(self, order_id):
-        query = """
-            SELECT 
-                s.service_name,
-                rr.result_value,
-                rr.conclusion
-            FROM order_services os
-            JOIN services s ON os.service_id = s.service_id
-            LEFT JOIN research_results rr ON os.order_service_id = rr.order_service_id
-            WHERE os.order_id = %s
-        """
-        try:
-            return self.execute_query(query, (order_id,))
-        except pymysql.Error:
-            return []
-
-    def get_recent_reports(self, limit=10):
-        query = f"""
-            SELECT 
-                r.report_id,
-                o.vessel_code,
-                DATE_FORMAT(r.report_date, '%d.%m.%Y') as report_date,
-                e.full_name as employee_name
-            FROM reports r
-            JOIN orders o ON r.order_id = o.order_id
-            JOIN employees e ON r.employee_id = e.employee_id
-            ORDER BY r.report_date DESC
-            LIMIT {int(limit)}
-        """
-        try:
-            return self.execute_query(query)
-        except pymysql.Error:
-            return []
-
-    def get_client_by_login(self, login, password_hash):
-        """
-        Ищет клиента по логину и паролю.
-        """
-        query = """
-            SELECT 
-                c.client_id, 
-                c.login, 
-                c.email, 
-                c.client_type, 
-                c.phone,
-                COALESCE(l.company_name, i.full_name) as full_name,
-                COALESCE(l.contact_person, i.full_name) as contact_person
-            FROM clients c
-            LEFT JOIN legal_entities l ON c.client_id = l.client_id
-            LEFT JOIN individuals i ON c.client_id = i.client_id
-            WHERE c.login = %s AND c.password_hash = %s AND c.is_active = 1
-        """
-        try:
-            result = self.execute_query(query, (login, password_hash))
-            return result[0] if result else None
-        except Exception as e:
-            print(f"get_client_by_login error: {e}")
-            return None
-
-    def get_client_stats(self, client_id):
-        query = """
-            SELECT COUNT(*) as total_orders,
-                   SUM(CASE WHEN status IN ('Новый', 'В работе') THEN 1 ELSE 0 END) as active_orders,
-                   SUM(CASE WHEN status = 'Завершён' THEN 1 ELSE 0 END) as completed_orders
-            FROM orders WHERE client_id = %s AND is_archived = 0
-        """
-        try:
-            result = self.execute_query(query, (client_id,))
-            return result[0] if result else None
-        except Exception: return None
-
-    def get_client_orders(self, client_id, limit=None):
-        query = """
-            SELECT o.order_id, o.vessel_code, DATE_FORMAT(o.order_date, '%%d.%%m.%%Y') as order_date,
-                   o.status, COUNT(os.order_service_id) as services_count,
-                   SUM(os.price_at_order) as total_price,
-                   GROUP_CONCAT(s.service_name SEPARATOR ', ') as services_list
-            FROM orders o
-            LEFT JOIN order_services os ON o.order_id = os.order_id
-            LEFT JOIN services s ON os.service_id = s.service_id
-            WHERE o.client_id = %s AND o.is_archived = 0
-            GROUP BY o.order_id, o.vessel_code, o.order_date, o.status
-            ORDER BY o.order_date DESC
-        """
-        if limit: query += f" LIMIT {int(limit)}"
-        try: return self.execute_query(query, (client_id,))
-        except Exception: return []
-
-    def get_client_results(self, client_id):
-        query = """
-            SELECT o.vessel_code, s.service_name, DATE_FORMAT(rr.result_date, '%%d.%%m.%%Y') as result_date,
-                   rr.result_value, rr.conclusion, e.full_name as employee_name
-            FROM orders o JOIN order_services os ON o.order_id = os.order_id
-            JOIN services s ON os.service_id = s.service_id
-            LEFT JOIN research_results rr ON os.order_service_id = rr.order_service_id
-            LEFT JOIN employees e ON rr.employee_id = e.employee_id
-            WHERE o.client_id = %s AND o.is_archived = 0 ORDER BY rr.result_date DESC
-        """
-        try: return self.execute_query(query, (client_id,))
-        except Exception: return []
-
-    def get_client_reports(self, client_id):
-        query = """
-            SELECT r.report_id, o.vessel_code, DATE_FORMAT(r.report_date, '%%d.%%m.%%Y') as report_date
-            FROM reports r JOIN orders o ON r.order_id = o.order_id
-            WHERE o.client_id = %s ORDER BY r.report_date DESC
-        """
-        try: return self.execute_query(query, (client_id,))
-        except Exception: return []
-
-    def get_client_info(self, client_id):
-        """
-        Получает информацию о клиенте для профиля.
-        """
-        query = """
-            SELECT 
-                c.email, 
-                c.phone, 
-                COALESCE(l.company_name, i.full_name) as name,
-                COALESCE(l.contact_person, i.full_name) as contact_person
-            FROM clients c
-            LEFT JOIN legal_entities l ON c.client_id = l.client_id
-            LEFT JOIN individuals i ON c.client_id = i.client_id
-            WHERE c.client_id = %s
-        """
-        try:
-            result = self.execute_query(query, (client_id,))
-            return result[0] if result else None
-        except Exception as e:
-            print(f"get_client_info error: {e}")
-            return None
+_db = Database()
+base_repo = _db.base_repo
+client_repo = _db.client_repo
+order_repo = _db.order_repo
+report_repo = _db.report_repo
