@@ -193,3 +193,69 @@ class ClientRepository(BaseRepository):
         except Exception as e:
             print(f"get_client_info error: {e}")
             return None
+
+    def create_client(self, client_type, phone, email, login=None, password_hash=None, is_active=1):
+        """Создаёт нового клиента.
+
+        Args:
+            client_type: Тип клиента ('FL' или 'UL').
+            phone: Телефон.
+            email: Email.
+            login: Логин (опционально).
+            password_hash: Хеш пароля (опционально).
+            is_active: Активен ли клиент.
+
+        Returns:
+            Идентификатор созданного клиента или None при ошибке.
+        """
+        query = """
+            INSERT INTO clients (client_type, phone, email, login, password_hash, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        try:
+            return self.execute_insert(query, (client_type, phone, email, login, password_hash, is_active))
+        except pymysql.Error as e:
+            print(f"Ошибка создания клиента: {e}")
+            return None
+
+    def search_clients(self, search_text):
+        """Поиск клиентов по имени, компании или телефону.
+
+        Args:
+            search_text: Текст для поиска.
+
+        Returns:
+            Список найденных клиентов.
+        """
+        query = """
+            SELECT 
+                c.client_id,
+                c.client_type,
+                c.phone,
+                c.email,
+                CASE 
+                    WHEN c.client_type = 'FL' THEN i.full_name 
+                    WHEN c.client_type = 'UL' THEN l.company_name 
+                END as name,
+                CASE 
+                    WHEN c.client_type = 'FL' THEN CONCAT(i.passport_series, ' ', i.passport_number)
+                    WHEN c.client_type = 'UL' THEN l.inn 
+                END as details,
+                CASE 
+                    WHEN c.client_type = 'FL' THEN i.full_name
+                    WHEN c.client_type = 'UL' THEN l.contact_person 
+                END as contact_person
+            FROM clients c
+            LEFT JOIN individuals i ON c.client_id = i.client_id
+            LEFT JOIN legal_entities l ON c.client_id = l.client_id
+            WHERE i.full_name LIKE %s
+               OR l.company_name LIKE %s
+               OR c.phone LIKE %s
+            ORDER BY c.client_id DESC
+        """
+        like = f"%{search_text}%"
+        try:
+            return self.execute_query(query, (like, like, like))
+        except pymysql.Error as e:
+            print(f"Ошибка поиска клиентов: {e}")
+            return []

@@ -91,3 +91,101 @@ class OrderRepository(BaseRepository):
             return self.execute_query(query)
         except pymysql.Error:
             return []
+
+    def create_order(self, vessel_code, client_id, employee_id, status='Новый'):
+        """Создаёт новый заказ.
+
+        Args:
+            vessel_code: Код судна.
+            client_id: Идентификатор клиента.
+            employee_id: Идентификатор сотрудника.
+            status: Статус заказа.
+
+        Returns:
+            Идентификатор созданного заказа или None при ошибке.
+        """
+        query = """
+            INSERT INTO orders (vessel_code, client_id, employee_id, status)
+            VALUES (%s, %s, %s, %s)
+        """
+        try:
+            return self.execute_insert(query, (vessel_code, client_id, employee_id, status))
+        except pymysql.Error as e:
+            print(f"Ошибка создания заказа: {e}")
+            return None
+
+    def add_order_service(self, order_id, service_id, price_at_order):
+        """Добавляет услугу к заказу.
+
+        Args:
+            order_id: Идентификатор заказа.
+            service_id: Идентификатор услуги.
+            price_at_order: Цена услуги на момент заказа.
+
+        Returns:
+            Идентификатор созданной записи или None при ошибке.
+        """
+        query = """
+            INSERT INTO order_services (order_id, service_id, price_at_order)
+            VALUES (%s, %s, %s)
+        """
+        try:
+            return self.execute_insert(query, (order_id, service_id, price_at_order))
+        except pymysql.Error as e:
+            print(f"Ошибка добавления услуги к заказу: {e}")
+            return None
+
+    def update_order_status(self, order_id, status):
+        """Обновляет статус заказа.
+
+        Args:
+            order_id: Идентификатор заказа.
+            status: Новый статус.
+
+        Returns:
+            True при успехе, False при ошибке.
+        """
+        query = "UPDATE orders SET status = %s WHERE order_id = %s"
+        try:
+            self.execute_query(query, (status, order_id))
+            return True
+        except pymysql.Error as e:
+            print(f"Ошибка обновления статуса заказа: {e}")
+            return False
+
+    def search_orders(self, search_text):
+        """Поиск заказов по коду судна или имени клиента.
+
+        Args:
+            search_text: Текст для поиска.
+
+        Returns:
+            Список найденных заказов.
+        """
+        query = """
+            SELECT 
+                o.order_id,
+                o.vessel_code,
+                CASE 
+                    WHEN c.client_type = 'FL' THEN i.full_name 
+                    WHEN c.client_type = 'UL' THEN l.company_name 
+                END as client_name,
+                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
+                e.full_name as employee_name,
+                o.status
+            FROM orders o
+            LEFT JOIN clients c ON o.client_id = c.client_id
+            LEFT JOIN individuals i ON c.client_id = i.client_id
+            LEFT JOIN legal_entities l ON c.client_id = l.client_id
+            LEFT JOIN employees e ON o.employee_id = e.employee_id
+            WHERE o.vessel_code LIKE %s
+               OR i.full_name LIKE %s
+               OR l.company_name LIKE %s
+            ORDER BY o.order_date DESC
+        """
+        like = f"%{search_text}%"
+        try:
+            return self.execute_query(query, (like, like, like))
+        except pymysql.Error as e:
+            print(f"Ошибка поиска заказов: {e}")
+            return []

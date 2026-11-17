@@ -79,3 +79,47 @@ class ReportRepository(BaseRepository):
             return self.execute_query(query)
         except pymysql.Error:
             return []
+
+    def save_research_result(self, order_service_id, result_value, conclusion, result_date, employee_id):
+        """Сохраняет результат исследования.
+
+        Args:
+            order_service_id: Идентификатор услуги в заказе.
+            result_value: Значение результата.
+            conclusion: Заключение.
+            result_date: Дата результата.
+            employee_id: Идентификатор сотрудника.
+
+        Returns:
+            Идентификатор созданной записи или None при ошибке.
+        """
+        query = """
+            INSERT INTO research_results (order_service_id, result_value, conclusion, result_date, employee_id)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        try:
+            return self.execute_insert(query, (order_service_id, result_value, conclusion, result_date, employee_id))
+        except pymysql.Error as e:
+            print(f"Ошибка сохранения результата исследования: {e}")
+            return None
+
+    def create_report(self, order_id, employee_id, file_path=None):
+        """Создаёт отчёт по заказу.
+
+        Args:
+            order_id: Идентификатор заказа.
+            employee_id: Идентификатор сотрудника.
+            file_path: Путь к файлу отчёта (опционально).
+
+        Returns:
+            Идентификатор созданного отчёта или None при ошибке.
+        """
+        query = """
+            INSERT INTO reports (order_id, employee_id, file_path)
+            VALUES (%s, %s, %s)
+        """
+        try:
+            return self.execute_insert(query, (order_id, employee_id, file_path))
+        except pymysql.Error as e:
+            print(f"Ошибка создания отчёта: {e}")
+            return None
