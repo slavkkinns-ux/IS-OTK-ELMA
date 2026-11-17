@@ -109,7 +109,7 @@ class Ui_ChooseLoginDialog(object):
         self.selectionFrame = QtWidgets.QFrame(parent=ChooseLoginDialog)
         self.selectionFrame.setMinimumSize(QtCore.QSize(0, 230))
         self.selectionFrame.setMaximumSize(QtCore.QSize(16777215, 230))
-        self.selectionFrame.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        self.selectionFrame.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.selectionFrame.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
         self.selectionFrame.setObjectName("selectionFrame")
         self.sectionLayout = QtWidgets.QHBoxLayout(self.selectionFrame)
