@@ -46,3 +46,4 @@ reports/*.docx
 
 *.db
 *.sqlite3
+.cursorrules

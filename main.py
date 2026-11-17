@@ -1,17 +1,40 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QStyleFactory
 from main_window import MainWindow
 from client_window import ClientWindow
 from choose_login import ChooseLoginDialog
 from session import Session
 
+THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
+
+
+def load_theme(app, theme_name="light"):
+    theme_path = os.path.join(THEMES_DIR, f"{theme_name}.qss")
+    if not os.path.exists(theme_path):
+        return
+    try:
+        with open(theme_path, "r", encoding="utf-8") as f:
+            app.setStyleSheet(f.read())
+    except Exception:
+        pass
+
 
 def run_app():
+    # Устанавливаем стиль Fusion ДО создания QApplication
+    # Это унифицирует рендеринг между Qt Designer и запуском
+    os.environ["QT_QPA_PLATFORMTHEME"] = ""
+
     app = QApplication(sys.argv)
     # Не завершать приложение при закрытии промежуточных окон
     # (например, окна входа при возврате к выбору типа входа)
     app.setQuitOnLastWindowClosed(False)
+
+    # Применяем стиль Fusion
+    app.setStyle(QStyleFactory.create("Fusion"))
+
+    # Загружаем тему (QSS поверх Fusion)
+    load_theme(app, "light")
 
     while True:
         Session.init()
@@ -43,6 +66,7 @@ def run_app():
             # Вход уже выполнен внутри ChooseLoginDialog,
             # повторно показывать окно входа не требуется
             continue
+
 
 if __name__ == "__main__":
     run_app()
