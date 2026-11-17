@@ -7,23 +7,8 @@ from client_window import ClientWindow
 from choose_login import ChooseLoginDialog
 from session import Session
 
-THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
-
-def load_theme(app, theme_name="light"):
-    theme_path = os.path.join(THEMES_DIR, f"{theme_name}.qss")
-    
-    if not os.path.exists(theme_path):
-        return
-        
-    try:
-        with open(theme_path, "r", encoding="utf-8") as f:
-            app.setStyleSheet(f.read())
-    except Exception:
-        pass
-
 def run_app():
     app = QApplication(sys.argv)
-    load_theme(app, "light")
 
     while True:
         Session.init()
