@@ -67,7 +67,7 @@ class ReportRepository(BaseRepository):
             SELECT 
                 r.report_id,
                 o.vessel_code,
-                DATE_FORMAT(r.report_date, '%d.%m.%Y') as report_date,
+                DATE_FORMAT(r.report_date, '%%d.%%m.%%Y') as report_date,
                 e.full_name as employee_name
             FROM reports r
             JOIN orders o ON r.order_id = o.order_id

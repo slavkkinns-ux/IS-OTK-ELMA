@@ -51,7 +51,7 @@ class OrderRepository(BaseRepository):
                     WHEN c.client_type = 'FL' THEN i.full_name 
                     WHEN c.client_type = 'UL' THEN l.company_name 
                 END as client_name,
-                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
+                DATE_FORMAT(o.order_date, '%%d.%%m.%%Y') as order_date,
                 o.status
             FROM orders o
             LEFT JOIN clients c ON o.client_id = c.client_id
@@ -76,7 +76,7 @@ class OrderRepository(BaseRepository):
                     WHEN c.client_type = 'FL' THEN i.full_name 
                     WHEN c.client_type = 'UL' THEN l.company_name 
                 END as client_name,
-                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
+                DATE_FORMAT(o.order_date, '%%d.%%m.%%Y') as order_date,
                 e.full_name as employee_name,
                 o.status,
                 NULL as completion_date
@@ -170,7 +170,7 @@ class OrderRepository(BaseRepository):
                     WHEN c.client_type = 'FL' THEN i.full_name 
                     WHEN c.client_type = 'UL' THEN l.company_name 
                 END as client_name,
-                DATE_FORMAT(o.order_date, '%d.%m.%Y') as order_date,
+                DATE_FORMAT(o.order_date, '%%d.%%m.%%Y') as order_date,
                 e.full_name as employee_name,
                 o.status
             FROM orders o
