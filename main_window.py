@@ -465,6 +465,7 @@ class MainWindow(QMainWindow):
         self.ui.btnViewOrder.clicked.connect(self._view_order)
         self.ui.btnRefreshOrder.clicked.connect(self._refresh_orders_page)
         self.ui.btnSearchOrders.clicked.connect(self._search_orders)
+        self.ui.editOrderSearch.returnPressed.connect(self._search_orders)
         self.ui.btnResetOrderFilters.clicked.connect(self._reset_order_filters)
         self._load_orders_stats()
         self._load_orders_table()
