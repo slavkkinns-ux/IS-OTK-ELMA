@@ -497,6 +497,7 @@ class MainWindow(QMainWindow):
         self.ui.btnPrintReport.clicked.connect(self._print_report)
 
         self.ui.comboreportsOrder.currentIndexChanged.connect(self._on_report_order_changed)
+        self.ui.tableRecentReports.itemSelectionChanged.connect(self._show_report_preview)
 
         self._load_reports_combo()
         self._load_recent_reports()
@@ -1127,6 +1128,34 @@ class MainWindow(QMainWindow):
         if order_id:
             self._load_report_research_table(order_id)
 
+    def _show_report_preview(self):
+        """Отображает предварительную версию отчёта при выборе строки в таблице."""
+        row = self.ui.tableRecentReports.currentRow()
+        if row < 0:
+            return
+
+        vessel_code = self.ui.tableRecentReports.item(row, 1).text()
+        if not vessel_code:
+            return
+
+        # Находим заказ по коду судна
+        orders = order_repo.get_all_orders()
+        order_data = next((o for o in orders if o['vessel_code'] == vessel_code), None)
+        if not order_data:
+            return
+
+        order_id = order_data['order_id']
+
+        # Обновляем комбобокс (без триггера сигнала, чтобы не было рекурсии)
+        self.ui.comboreportsOrder.blockSignals(True)
+        index = self.ui.comboreportsOrder.findData(order_id)
+        if index >= 0:
+            self.ui.comboreportsOrder.setCurrentIndex(index)
+        self.ui.comboreportsOrder.blockSignals(False)
+
+        # Заполняем preview
+        self._load_report_research_table(order_id)
+
     def _load_report_research_table(self, order_id):
         rows = report_repo.get_report_research(order_id)
 
@@ -1141,6 +1170,27 @@ class MainWindow(QMainWindow):
             self.ui.tableReportResearch.setItem(row_idx, 2, QTableWidgetItem(r['conclusion'] or '-'))
         self.ui.tableReportResearch.resizeRowsToContents()
 
+        # Заполняем панель предварительного просмотра отчёта
+        orders = order_repo.get_all_orders()
+        order_data = next((o for o in orders if o['order_id'] == order_id), None)
+        if order_data:
+            self.ui.lblDocumentOrder.setText(order_data['vessel_code'])
+            self.ui.lblDocumentClient.setText(order_data['client_name'] or '—')
+
+            # Собираем результаты исследований в текст заключения
+            results = []
+            for r in rows:
+                service = r['service_name']
+                result_val = r['result_value'] or '—'
+                conclusion = r['conclusion'] or '—'
+                results.append(f"{service}: {result_val}. {conclusion}")
+            self.ui.lblDocumentConclusion.setText(' | '.join(results) if results else '—')
+
+            self.ui.lblDocumentOrganization.setText('СПбЦ «ЭЛМА»')
+            self.ui.lblDocumentTitle.setText('ОТЧЁТ О ТЕХНИЧЕСКОМ КОНТРОЛЕ')
+            self.ui.lblDocumentNumber.setText(f'ОТЧ-{order_id:04d}')
+            self.ui.lblDocumentResearchTitle.setText('Результаты исследований')
+
     def _load_recent_reports(self):
         rows = report_repo.get_recent_reports()
 
@@ -1150,7 +1200,9 @@ class MainWindow(QMainWindow):
 
         self.ui.tableRecentReports.setRowCount(len(rows))
         for row_idx, r in enumerate(rows):
-            self.ui.tableRecentReports.setItem(row_idx, 0, QTableWidgetItem(f"ОТЧ-{r['report_id']:04d}"))
+            item_report = QTableWidgetItem(f"ОТЧ-{r['report_id']:04d}")
+            item_report.setData(Qt.ItemDataRole.UserRole, r['report_id'])
+            self.ui.tableRecentReports.setItem(row_idx, 0, item_report)
             self.ui.tableRecentReports.setItem(row_idx, 1, QTableWidgetItem(r['vessel_code']))
 
             item_date = QTableWidgetItem(r['report_date'])
