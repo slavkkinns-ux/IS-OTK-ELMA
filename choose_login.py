@@ -1,16 +1,19 @@
 from PyQt6.QtWidgets import QDialog
 from ui.choose_login_ui import Ui_ChooseLoginDialog
+from login_employee import EmployeeLoginWindow
+from login_client import ClientLoginWindow
 
 
 class ChooseLoginDialog(QDialog):
     """
     Диалог выбора типа входа: Сотрудник или Клиент.
+    При выборе типа открывает соответствующее окно входа.
     Возвращает:
-        - "employee" если выбрали вход сотрудника
-        - "client" если выбрали вход клиента
-        - None если закрыли окно
+        - "employee" если вход сотрудника выполнен успешно
+        - "client" если вход клиента выполнен успешно
+        - None если окно закрыто без входа
     """
-    
+
     # Стили с высокой специфичностью (привязка к #ChooseLoginDialog),
     # чтобы перекрыть глобальную тему приложения
     DIALOG_STYLE = """
@@ -68,27 +71,41 @@ class ChooseLoginDialog(QDialog):
         super().__init__()
         self.ui = Ui_ChooseLoginDialog()
         self.ui.setupUi(self)
-        
+
         # Принудительно применяем стили к диалогу
         self.setStyleSheet(self.DIALOG_STYLE)
-        
+
         self.choice = None
-        
+
         # Подключаем кнопки
         self.ui.btnEmployeeLogin.clicked.connect(self._choose_employee)
         self.ui.btnClientLogin.clicked.connect(self._choose_client)
-    
+
     def _choose_employee(self):
-        self.choice = "employee"
-        self.accept()
-    
+        """Открывает окно входа сотрудника."""
+        self.hide()
+        login = EmployeeLoginWindow()
+        result = login.exec()
+        self.show()
+        if result == QDialog.DialogCode.Accepted:
+            self.choice = "employee"
+            self.accept()
+        # Если нажат «Назад» — возвращаемся к выбору типа входа
+
     def _choose_client(self):
-        self.choice = "client"
-        self.accept()
-    
+        """Открывает окно входа клиента."""
+        self.hide()
+        login = ClientLoginWindow()
+        result = login.exec()
+        self.show()
+        if result == QDialog.DialogCode.Accepted:
+            self.choice = "client"
+            self.accept()
+        # Если нажат «Назад» — возвращаемся к выбору типа входа
+
     @staticmethod
     def get_choice():
-        """Статический метод для удобного вызова"""
+        """Статический метод для удобного вызова."""
         dialog = ChooseLoginDialog()
         result = dialog.exec()
         if result == QDialog.DialogCode.Accepted:
