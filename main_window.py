@@ -136,40 +136,94 @@ class OrderDialog(QDialog):
 
 
 class ClientDialog(QDialog):
-    """Диалог добавления/редактирования клиента."""
+    """Диалог добавления/редактирования клиента с динамическими полями для ФЛ/ЮЛ."""
 
     def __init__(self, parent=None, client_data=None):
         super().__init__(parent)
         self.client_data = client_data
         self.setWindowTitle("Добавление клиента" if not client_data else "Редактирование клиента")
-        self.setMinimumSize(450, 350)
+        self.setMinimumSize(500, 550)
 
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
+        self.layout = QVBoxLayout(self)
+        self.form = QFormLayout()
 
+        # Общие поля
         self.comboType = QComboBox()
         self.comboType.addItems(["Физическое лицо", "Юридическое лицо"])
-        form.addRow("Тип клиента:", self.comboType)
+        self.comboType.currentIndexChanged.connect(self._on_type_changed)
+        self.form.addRow("Тип клиента:", self.comboType)
 
         self.editName = QLineEdit()
         self.editName.setPlaceholderText("ФИО или название компании")
-        form.addRow("Название:", self.editName)
+        self.form.addRow("Название:", self.editName)
 
         self.editPhone = QLineEdit()
         self.editPhone.setPlaceholderText("+7 (999) 123-45-67")
-        form.addRow("Телефон:", self.editPhone)
+        self.form.addRow("Телефон:", self.editPhone)
 
         self.editEmail = QLineEdit()
         self.editEmail.setPlaceholderText("email@example.com")
-        form.addRow("Email:", self.editEmail)
+        self.form.addRow("Email:", self.editEmail)
+
+        # Поля для ФЛ (скрыты по умолчанию)
+        self.editFullName = QLineEdit()
+        self.editFullName.setPlaceholderText("Иванов Иван Иванович")
+        self.editFullName.hide()
+
+        self.editBirthDate = QDateEdit()
+        self.editBirthDate.setCalendarPopup(True)
+        self.editBirthDate.setDate(QDate.currentDate().addYears(-30))
+        self.editBirthDate.hide()
+
+        self.editPassportSeries = QLineEdit()
+        self.editPassportSeries.setPlaceholderText("1234")
+        self.editPassportSeries.setMaxLength(4)
+        self.editPassportSeries.hide()
+
+        self.editPassportNumber = QLineEdit()
+        self.editPassportNumber.setPlaceholderText("567890")
+        self.editPassportNumber.setMaxLength(6)
+        self.editPassportNumber.hide()
+
+        # Поля для ЮЛ (скрыты по умолчанию)
+        self.editCompanyName = QLineEdit()
+        self.editCompanyName.setPlaceholderText("ООО «ТехноСервис»")
+        self.editCompanyName.hide()
+
+        self.editAddress = QLineEdit()
+        self.editAddress.setPlaceholderText("г. Санкт-Петербург, ул. Примерная, д. 1")
+        self.editAddress.hide()
 
         self.editINN = QLineEdit()
-        self.editINN.setPlaceholderText("ИНН (для юр. лиц)")
-        self.editINN.returnPressed.connect(self.accept)
-        form.addRow("ИНН:", self.editINN)
+        self.editINN.setPlaceholderText("1234567890")
+        self.editINN.setMaxLength(12)
+        self.editINN.hide()
 
-        layout.addLayout(form)
+        self.editKPP = QLineEdit()
+        self.editKPP.setPlaceholderText("123456789")
+        self.editKPP.setMaxLength(9)
+        self.editKPP.hide()
 
+        self.editCheckingAccount = QLineEdit()
+        self.editCheckingAccount.setPlaceholderText("40702810123456789012")
+        self.editCheckingAccount.hide()
+
+        self.editBIK = QLineEdit()
+        self.editBIK.setPlaceholderText("044525225")
+        self.editBIK.setMaxLength(9)
+        self.editBIK.hide()
+
+        self.editDirectorName = QLineEdit()
+        self.editDirectorName.setPlaceholderText("Петров Пётр Петрович")
+        self.editDirectorName.hide()
+
+        self.editContactPerson = QLineEdit()
+        self.editContactPerson.setPlaceholderText("Иванов Иван Иванович")
+        self.editContactPerson.hide()
+
+        self.layout.addLayout(self.form)
+
+        # Кнопки
         self.btnBox = QHBoxLayout()
         self.btnSave = QPushButton("Сохранить")
         self.btnSave.setDefault(True)
@@ -177,26 +231,118 @@ class ClientDialog(QDialog):
         self.btnCancel.clicked.connect(self.reject)
         self.btnBox.addWidget(self.btnSave)
         self.btnBox.addWidget(self.btnCancel)
-        layout.addLayout(self.btnBox)
+        self.layout.addLayout(self.btnBox)
 
         self.btnSave.clicked.connect(self.accept)
+
+        # Инициализируем видимость полей (по умолчанию ФЛ)
+        self._show_fl_fields()
 
         if client_data:
             self._fill_data(client_data)
 
+    def _show_fl_fields(self):
+        """Показывает поля для физического лица, скрывает поля для юр. лица."""
+        # Скрываем поля ЮЛ
+        for w in [self.editCompanyName, self.editAddress, self.editINN, self.editKPP,
+                  self.editCheckingAccount, self.editBIK, self.editDirectorName,
+                  self.editContactPerson]:
+            w.hide()
+        # Показываем поля ФЛ
+        for w in [self.editFullName, self.editBirthDate, self.editPassportSeries,
+                  self.editPassportNumber]:
+            w.show()
+        # Пересоздаём строки формы для ФЛ (после общих 4 полей)
+        while self.form.rowCount() > 4:
+            self.form.removeRow(4)
+        self.form.addRow("ФИО:", self.editFullName)
+        self.form.addRow("Дата рождения:", self.editBirthDate)
+        self.form.addRow("Серия паспорта:", self.editPassportSeries)
+        self.form.addRow("Номер паспорта:", self.editPassportNumber)
+
+    def _show_ul_fields(self):
+        """Показывает поля для юридического лица, скрывает поля для физ. лица."""
+        # Скрываем поля ФЛ
+        for w in [self.editFullName, self.editBirthDate, self.editPassportSeries,
+                  self.editPassportNumber]:
+            w.hide()
+        # Показываем поля ЮЛ
+        for w in [self.editCompanyName, self.editAddress, self.editINN, self.editKPP,
+                  self.editCheckingAccount, self.editBIK, self.editDirectorName,
+                  self.editContactPerson]:
+            w.show()
+        # Пересоздаём строки формы для ЮЛ (после общих 4 полей)
+        while self.form.rowCount() > 4:
+            self.form.removeRow(4)
+        self.form.addRow("Название компании:", self.editCompanyName)
+        self.form.addRow("Юридический адрес:", self.editAddress)
+        self.form.addRow("ИНН:", self.editINN)
+        self.form.addRow("КПП:", self.editKPP)
+        self.form.addRow("Расчётный счёт:", self.editCheckingAccount)
+        self.form.addRow("БИК:", self.editBIK)
+        self.form.addRow("Директор:", self.editDirectorName)
+        self.form.addRow("Контактное лицо:", self.editContactPerson)
+
+    def _on_type_changed(self, index):
+        """Переключает видимость полей в зависимости от типа клиента."""
+        if index == 1:  # Юридическое лицо
+            self._show_ul_fields()
+        else:  # Физическое лицо
+            self._show_fl_fields()
+
     def _fill_data(self, data):
-        self.editName.setText(data.get('name', ''))
+        client_type = data.get('client_type', 'FL')
+        self.comboType.setCurrentIndex(0 if client_type == 'FL' else 1)
+        self.editName.setText(data.get('name', '') or data.get('full_name', '') or data.get('company_name', ''))
         self.editPhone.setText(data.get('phone', ''))
         self.editEmail.setText(data.get('email', ''))
-        if data.get('contact_person'):
-            self.editName.setText(data.get('contact_person', ''))
+        self.editINN.setText(data.get('inn', ''))
+
+        if client_type == 'FL':
+            self.editFullName.setText(data.get('full_name', ''))
+            if data.get('birth_date'):
+                self.editBirthDate.setDate(QDate.fromString(str(data['birth_date']), 'yyyy-MM-dd'))
+            self.editPassportSeries.setText(data.get('passport_series', ''))
+            self.editPassportNumber.setText(data.get('passport_number', ''))
+        else:
+            self.editCompanyName.setText(data.get('company_name', ''))
+            self.editAddress.setText(data.get('address', ''))
+            self.editKPP.setText(data.get('kpp', ''))
+            self.editCheckingAccount.setText(data.get('checking_account', ''))
+            self.editBIK.setText(data.get('bik', ''))
+            self.editDirectorName.setText(data.get('director_name', ''))
+            self.editContactPerson.setText(data.get('contact_person', ''))
 
     def get_data(self):
-        return {
-            'client_type': 'UL' if self.comboType.currentIndex() == 1 else 'FL',
+        client_type = 'UL' if self.comboType.currentIndex() == 1 else 'FL'
+        data = {
+            'client_type': client_type,
             'phone': self.editPhone.text().strip(),
             'email': self.editEmail.text().strip(),
         }
+
+        if client_type == 'FL':
+            data.update({
+                'full_name': self.editFullName.text().strip(),
+                'birth_date': self.editBirthDate.date().toString('yyyy-MM-dd'),
+                'passport_series': self.editPassportSeries.text().strip(),
+                'passport_number': self.editPassportNumber.text().strip(),
+            })
+            data['name'] = data['full_name']
+        else:
+            data.update({
+                'company_name': self.editCompanyName.text().strip(),
+                'address': self.editAddress.text().strip(),
+                'inn': self.editINN.text().strip(),
+                'kpp': self.editKPP.text().strip(),
+                'checking_account': self.editCheckingAccount.text().strip(),
+                'bik': self.editBIK.text().strip(),
+                'director_name': self.editDirectorName.text().strip(),
+                'contact_person': self.editContactPerson.text().strip(),
+            })
+            data['name'] = data['company_name']
+
+        return data
 
 
 class ResearchDialog(QDialog):
@@ -657,11 +803,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Ошибка", "Введите телефон")
                 return
 
-            client_id = client_repo.create_client(
-                data['client_type'],
-                data['phone'],
-                data['email']
-            )
+            client_id = client_repo.create_client(data)
             if client_id:
                 QMessageBox.information(self, "Успех", "Клиент успешно добавлен")
                 self._load_clients_to_table()
@@ -690,11 +832,9 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Ошибка", "Введите телефон")
                 return
 
-            client_id_new = client_repo.create_client(
-                data['client_type'],
-                data['phone'],
-                data['email']
-            )
+            # При редактировании создаём новую запись с обновлёнными данными
+            # (старые данные остаются в истории)
+            client_id_new = client_repo.create_client(data)
             if client_id_new:
                 QMessageBox.information(self, "Успех", "Клиент обновлён")
                 self._load_clients_to_table()

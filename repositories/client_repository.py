@@ -194,27 +194,77 @@ class ClientRepository(BaseRepository):
             print(f"get_client_info error: {e}")
             return None
 
-    def create_client(self, client_type, phone, email, login=None, password_hash=None, is_active=1):
-        """Создаёт нового клиента.
+    def create_client(self, client_data):
+        """Создаёт нового клиента с данными ФЛ или ЮЛ.
 
         Args:
-            client_type: Тип клиента ('FL' или 'UL').
-            phone: Телефон.
-            email: Email.
-            login: Логин (опционально).
-            password_hash: Хеш пароля (опционально).
-            is_active: Активен ли клиент.
+            client_data: Словарь с данными клиента:
+                - client_type: 'FL' или 'UL'
+                - phone: Телефон
+                - email: Email
+                - login: Логин (опционально)
+                - password_hash: Хеш пароля (опционально)
+                - is_active: Активен ли клиент
+                - Для ФЛ: full_name, birth_date, passport_series, passport_number
+                - Для ЮЛ: company_name, address, inn, kpp, checking_account, bik, director_name, contact_person
 
         Returns:
             Идентификатор созданного клиента или None при ошибке.
         """
-        query = """
-            INSERT INTO clients (client_type, phone, email, login, password_hash, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """
+        client_type = client_data['client_type']
+        connection = self.get_connection()
+
         try:
-            return self.execute_insert(query, (client_type, phone, email, login, password_hash, is_active))
+            with connection.cursor() as cursor:
+                # Создаём клиента
+                cursor.execute(
+                    """INSERT INTO clients (client_type, phone, email, login, password_hash, is_active)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (
+                        client_type,
+                        client_data.get('phone', ''),
+                        client_data.get('email', ''),
+                        client_data.get('login'),
+                        client_data.get('password_hash'),
+                        client_data.get('is_active', 1)
+                    )
+                )
+                client_id = cursor.lastrowid
+
+                if client_type == 'FL':
+                    cursor.execute(
+                        """INSERT INTO individuals (client_id, full_name, birth_date, passport_series, passport_number)
+                           VALUES (%s, %s, %s, %s, %s)""",
+                        (
+                            client_id,
+                            client_data.get('full_name', ''),
+                            client_data.get('birth_date') or None,
+                            client_data.get('passport_series', ''),
+                            client_data.get('passport_number', '')
+                        )
+                    )
+                else:  # UL
+                    cursor.execute(
+                        """INSERT INTO legal_entities (client_id, company_name, address, inn, kpp,
+                                                       checking_account, bik, director_name, contact_person)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (
+                            client_id,
+                            client_data.get('company_name', ''),
+                            client_data.get('address', ''),
+                            client_data.get('inn', ''),
+                            client_data.get('kpp', ''),
+                            client_data.get('checking_account', ''),
+                            client_data.get('bik', ''),
+                            client_data.get('director_name', ''),
+                            client_data.get('contact_person', '')
+                        )
+                    )
+
+                connection.commit()
+                return client_id
         except pymysql.Error as e:
+            connection.rollback()
             print(f"Ошибка создания клиента: {e}")
             return None
 
