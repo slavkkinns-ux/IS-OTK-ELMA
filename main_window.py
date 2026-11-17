@@ -165,61 +165,75 @@ class ClientDialog(QDialog):
         self.editEmail.setPlaceholderText("email@example.com")
         self.form.addRow("Email:", self.editEmail)
 
-        # Поля для ФЛ (добавляем все в форму, потом скрываем лишние)
+        # Контейнер для полей ФЛ (скрывается/показывается целиком)
+        self.flContainer = QWidget()
+        flLayout = QVBoxLayout(self.flContainer)
+        flLayout.setContentsMargins(0, 0, 0, 0)
+        flLayout.setSpacing(6)
+
         self.editFullName = QLineEdit()
         self.editFullName.setPlaceholderText("Иванов Иван Иванович")
-        self.form.addRow("ФИО:", self.editFullName)
+        flLayout.addWidget(self.editFullName)
 
         self.editBirthDate = QDateEdit()
         self.editBirthDate.setCalendarPopup(True)
         self.editBirthDate.setDate(QDate.currentDate().addYears(-30))
-        self.form.addRow("Дата рождения:", self.editBirthDate)
+        flLayout.addWidget(self.editBirthDate)
 
         self.editPassportSeries = QLineEdit()
         self.editPassportSeries.setPlaceholderText("1234")
         self.editPassportSeries.setMaxLength(4)
-        self.form.addRow("Серия паспорта:", self.editPassportSeries)
+        flLayout.addWidget(self.editPassportSeries)
 
         self.editPassportNumber = QLineEdit()
         self.editPassportNumber.setPlaceholderText("567890")
         self.editPassportNumber.setMaxLength(6)
-        self.form.addRow("Номер паспорта:", self.editPassportNumber)
+        flLayout.addWidget(self.editPassportNumber)
 
-        # Поля для ЮЛ (добавляем все в форму, потом скрываем лишние)
+        self.form.addRow("Данные ФЛ:", self.flContainer)
+
+        # Контейнер для полей ЮЛ (скрывается/показывается целиком)
+        self.ulContainer = QWidget()
+        ulLayout = QVBoxLayout(self.ulContainer)
+        ulLayout.setContentsMargins(0, 0, 0, 0)
+        ulLayout.setSpacing(6)
+
         self.editCompanyName = QLineEdit()
         self.editCompanyName.setPlaceholderText("ООО «ТехноСервис»")
-        self.form.addRow("Название компании:", self.editCompanyName)
+        ulLayout.addWidget(self.editCompanyName)
 
         self.editAddress = QLineEdit()
         self.editAddress.setPlaceholderText("г. Санкт-Петербург, ул. Примерная, д. 1")
-        self.form.addRow("Юридический адрес:", self.editAddress)
+        ulLayout.addWidget(self.editAddress)
 
         self.editINN = QLineEdit()
         self.editINN.setPlaceholderText("1234567890")
         self.editINN.setMaxLength(12)
-        self.form.addRow("ИНН:", self.editINN)
+        ulLayout.addWidget(self.editINN)
 
         self.editKPP = QLineEdit()
         self.editKPP.setPlaceholderText("123456789")
         self.editKPP.setMaxLength(9)
-        self.form.addRow("КПП:", self.editKPP)
+        ulLayout.addWidget(self.editKPP)
 
         self.editCheckingAccount = QLineEdit()
         self.editCheckingAccount.setPlaceholderText("40702810123456789012")
-        self.form.addRow("Расчётный счёт:", self.editCheckingAccount)
+        ulLayout.addWidget(self.editCheckingAccount)
 
         self.editBIK = QLineEdit()
         self.editBIK.setPlaceholderText("044525225")
         self.editBIK.setMaxLength(9)
-        self.form.addRow("БИК:", self.editBIK)
+        ulLayout.addWidget(self.editBIK)
 
         self.editDirectorName = QLineEdit()
         self.editDirectorName.setPlaceholderText("Петров Пётр Петрович")
-        self.form.addRow("Директор:", self.editDirectorName)
+        ulLayout.addWidget(self.editDirectorName)
 
         self.editContactPerson = QLineEdit()
         self.editContactPerson.setPlaceholderText("Иванов Иван Иванович")
-        self.form.addRow("Контактное лицо:", self.editContactPerson)
+        ulLayout.addWidget(self.editContactPerson)
+
+        self.form.addRow("Данные ЮЛ:", self.ulContainer)
 
         self.layout.addLayout(self.form)
 
@@ -235,42 +249,20 @@ class ClientDialog(QDialog):
 
         self.btnSave.clicked.connect(self.accept)
 
-        # Инициализируем видимость полей (по умолчанию ФЛ)
-        self._show_fl_fields()
+        # Инициализируем видимость контейнеров (по умолчанию ФЛ)
+        self._on_type_changed(0)
 
         if client_data:
             self._fill_data(client_data)
 
-    def _show_fl_fields(self):
-        """Показывает поля для физического лица, скрывает поля для юр. лица."""
-        # Скрываем поля ЮЛ
-        for w in [self.editCompanyName, self.editAddress, self.editINN, self.editKPP,
-                  self.editCheckingAccount, self.editBIK, self.editDirectorName,
-                  self.editContactPerson]:
-            w.hide()
-        # Показываем поля ФЛ
-        for w in [self.editFullName, self.editBirthDate, self.editPassportSeries,
-                  self.editPassportNumber]:
-            w.show()
-
-    def _show_ul_fields(self):
-        """Показывает поля для юридического лица, скрывает поля для физ. лица."""
-        # Скрываем поля ФЛ
-        for w in [self.editFullName, self.editBirthDate, self.editPassportSeries,
-                  self.editPassportNumber]:
-            w.hide()
-        # Показываем поля ЮЛ
-        for w in [self.editCompanyName, self.editAddress, self.editINN, self.editKPP,
-                  self.editCheckingAccount, self.editBIK, self.editDirectorName,
-                  self.editContactPerson]:
-            w.show()
-
     def _on_type_changed(self, index):
-        """Переключает видимость полей в зависимости от типа клиента."""
+        """Переключает видимость контейнеров в зависимости от типа клиента."""
         if index == 1:  # Юридическое лицо
-            self._show_ul_fields()
+            self.flContainer.hide()
+            self.ulContainer.show()
         else:  # Физическое лицо
-            self._show_fl_fields()
+            self.flContainer.show()
+            self.ulContainer.hide()
 
     def _fill_data(self, data):
         client_type = data.get('client_type', 'FL')
