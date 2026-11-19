@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem,
     QMessageBox, QDialog, QDateEdit, QLabel, QPushButton,
-    QHBoxLayout, QLineEdit, QWidget
+    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget,
 )
 
 from ui.main_window_ui import Ui_MainWindow
@@ -177,7 +177,6 @@ class MainWindow(QMainWindow):
         h.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
-
         self.ui.tableOrders.setColumnWidth(1, 220)
         self.ui.tableOrders.setColumnWidth(3, 200)
         self.ui.tableOrders.setWordWrap(True)
@@ -185,10 +184,13 @@ class MainWindow(QMainWindow):
         # Клиенты
         h = self.ui.tableClients.horizontalHeader()
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.ui.tableClients.setColumnWidth(1, 220)
+        self.ui.tableClients.setColumnWidth(3, 200)
+        self.ui.tableClients.setWordWrap(True)
 
         # Очередь исследований
         h = self.ui.tableResearchQueue.horizontalHeader()
@@ -246,7 +248,6 @@ class MainWindow(QMainWindow):
 
     def _setup_home_tab(self):
         self.ui.btnAllOrders.clicked.connect(self._go_to_orders)
-        self._add_recent_orders_search()
         self._load_home_stats()
         self._load_recent_orders()
 
@@ -288,55 +289,6 @@ class MainWindow(QMainWindow):
             item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableRecentOrders.setItem(row_idx, 3, item_status)
         self.ui.tableRecentOrders.setSortingEnabled(True)
-
-    def _add_recent_orders_search(self):
-        """Программно добавляем поиск над таблицей последних заказов."""
-        parent = self.ui.tableRecentOrders.parent()
-        parent_layout = parent.layout() if parent else None
-        if not parent_layout:
-            return
-
-        search_widget = QWidget()
-        search_layout = QHBoxLayout(search_widget)
-        search_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.editRecentOrdersSearch = QLineEdit()
-        self.editRecentOrdersSearch.setPlaceholderText(
-            "Поиск по коду сосуда, клиенту или статусу...")
-        self.editRecentOrdersSearch.textChanged.connect(self._search_recent_orders)
-        search_layout.addWidget(self.editRecentOrdersSearch)
-
-        btn_reset = QPushButton("Сбросить")
-        btn_reset.clicked.connect(self._reset_recent_orders_filters)
-        search_layout.addWidget(btn_reset)
-
-        # Вставляем перед таблицей
-        for i in range(parent_layout.count()):
-            item = parent_layout.itemAt(i)
-            if item and item.widget() == self.ui.tableRecentOrders:
-                parent_layout.insertWidget(i, search_widget)
-                return
-        parent_layout.addWidget(search_widget)
-
-    def _search_recent_orders(self):
-        query = self.editRecentOrdersSearch.text().strip().lower()
-        if not query:
-            self._load_recent_orders()
-            return
-        orders = order_repo.get_recent_orders(limit=100)
-        filtered = [
-            o for o in orders
-            if query in (
-                f"{o.get('vessel_code', '')} "
-                f"{o.get('client_name', '')} "
-                f"{o.get('status', '')}"
-            ).lower()
-        ]
-        self._populate_recent_orders_table(filtered)
-
-    def _reset_recent_orders_filters(self):
-        self.editRecentOrdersSearch.clear()
-        self._load_recent_orders()
 
     def _go_to_orders(self):
         self.ui.btnOrders.setChecked(True)
@@ -652,58 +604,224 @@ class MainWindow(QMainWindow):
     # RESEARCH — Исследования
     # =========================================================================
 
+    
     def _setup_research_tab(self):
+        """Настройка вкладки исследований."""
+        # Кнопки действий
         self.ui.btnSaveResearchResult.clicked.connect(self._save_research)
         self.ui.btnClearResearchResult.clicked.connect(self._clear_research)
         self.ui.btnViewResearchResult.clicked.connect(self._view_research)
 
+        # Поиск и фильтр
         self.ui.editResearchSearch.textChanged.connect(self._search_research)
         self.ui.comboResearchFilter.currentIndexChanged.connect(self._search_research)
 
+        # Клик по строке таблицы
+        self.ui.tableResearchQueue.clicked.connect(self._on_research_row_selected)
+
+        # Инициализация текущего выбранного исследования
+        self._current_order_service_id = None
+
+        # Загрузка данных
         self._load_research_queue()
+        self._load_employees_combo()
+
+        # Очистка правой панели при старте
+        self._clear_research_details()
+
+
+    def _load_employees_combo(self):
+        """Загрузить список активных сотрудников в comboResearchEmployee."""
+        employees = report_repo.get_all_employees()
+        self.ui.comboResearchEmployee.blockSignals(True)
+        self.ui.comboResearchEmployee.clear()
+        for emp in employees:
+            self.ui.comboResearchEmployee.addItem(emp['full_name'], emp['employee_id'])
+        self.ui.comboResearchEmployee.blockSignals(False)
+
+
+    def _on_research_row_selected(self, index):
+        """Обработка клика по строке в таблице исследований."""
+        row = index.row()
+        if row < 0:
+            return
+
+        # Получаем данные из строки
+        order_id = self.ui.tableResearchQueue.item(row, 0).text()
+        vessel_code = self.ui.tableResearchQueue.item(row, 1).text()
+        service_name = self.ui.tableResearchQueue.item(row, 2).text()
+        client_name = self.ui.tableResearchQueue.item(row, 3).text()
+
+        # Показываем в правой панели
+        self.ui.lblResearchOrderValue.setText(order_id)
+        self.ui.lblResearchVesselValue.setText(vessel_code)
+        self.ui.lblResearchClientValue.setText(client_name)
+        self.ui.lblResearchServiceValue.setText(service_name)
+
+        # Получаем order_service_id из UserRole
+        item = self.ui.tableResearchQueue.item(row, 0)
+        order_service_id = item.data(Qt.ItemDataRole.UserRole)
+        if order_service_id:
+            self._current_order_service_id = order_service_id
+            # Загружаем существующий результат, если есть
+            self._load_existing_research_result(order_service_id)
+
+
+    def _load_existing_research_result(self, order_service_id: int):
+        """Загрузить существующий результат исследования в поля."""
+        result = report_repo.get_research_result(order_service_id)
+        if result:
+            self.ui.editResearchResultValue.setText(result.get('result_value', '') or '')
+            self.ui.textResearchConclusion.setPlainText(result.get('conclusion', '') or '')
+            if result.get('result_date'):
+                from PyQt6.QtCore import QDate
+                result_date = result['result_date']
+                if hasattr(result_date, 'toPyDate'):
+                    self.ui.dateResearchResult.setDate(result_date)
+                else:
+                    self.ui.dateResearchResult.setDate(QDate.fromString(str(result_date), 'yyyy-MM-dd'))
+            # Устанавливаем сотрудника, если он есть
+            if result.get('employee_id'):
+                for i in range(self.ui.comboResearchEmployee.count()):
+                    if self.ui.comboResearchEmployee.itemData(i) == result['employee_id']:
+                        self.ui.comboResearchEmployee.setCurrentIndex(i)
+                        break
+        else:
+            self._clear_research_details()
+
+
+    def _clear_research_details(self):
+        """Очистить правую панель."""
+        self.ui.lblResearchOrderValue.setText('')
+        self.ui.lblResearchVesselValue.setText('')
+        self.ui.lblResearchClientValue.setText('')
+        self.ui.lblResearchServiceValue.setText('')
+        self.ui.editResearchResultValue.clear()
+        self.ui.textResearchConclusion.clear()
+        from PyQt6.QtCore import QDate
+        self.ui.dateResearchResult.setDate(QDate.currentDate())
+        self._current_order_service_id = None
+
+
+    def _save_research(self):
+        """Сохранить результат исследования."""
+        if not hasattr(self, '_current_order_service_id') or not self._current_order_service_id:
+            QMessageBox.warning(self, "Ошибка", "Выберите исследование из списка.")
+            return
+
+        result_value = self.ui.editResearchResultValue.text().strip()
+        conclusion = self.ui.textResearchConclusion.toPlainText().strip()
+        result_date = self.ui.dateResearchResult.date().toPyDate()
+        employee_id = self.ui.comboResearchEmployee.currentData()
+
+        if not result_value:
+            QMessageBox.warning(self, "Ошибка", "Введите результат исследования.")
+            return
+
+        try:
+            report_repo.save_research_result(
+                order_service_id=self._current_order_service_id,
+                employee_id=employee_id,
+                result_value=result_value,
+                conclusion=conclusion,
+                result_date=result_date
+            )
+            QMessageBox.information(self, "Готово", "Результат исследования сохранён.")
+            # Обновляем таблицу
+            self._load_research_queue()
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить результат:\n{e}")
+
+
+    def _clear_research(self):
+        """Очистить поля ввода результата."""
+        self.ui.editResearchResultValue.clear()
+        self.ui.textResearchConclusion.clear()
+        from PyQt6.QtCore import QDate
+        self.ui.dateResearchResult.setDate(QDate.currentDate())
+
+
+    def _view_research(self):
+        """Просмотреть результат исследования."""
+        if not hasattr(self, '_current_order_service_id') or not self._current_order_service_id:
+            QMessageBox.warning(self, "Просмотр", "Выберите исследование из списка.")
+            return
+
+        # Собираем информацию об исследовании из текущей строки
+        row = self.ui.tableResearchQueue.currentRow()
+        research_info = {
+            'order_id': self.ui.tableResearchQueue.item(row, 0).text(),
+            'vessel_code': self.ui.tableResearchQueue.item(row, 1).text(),
+            'service_name': self.ui.tableResearchQueue.item(row, 2).text(),
+            'client_name': self.ui.tableResearchQueue.item(row, 3).text(),
+        }
+
+        from dialogs.research_result_dialog import ResearchResultDialog
+        dlg = ResearchResultDialog(
+            self,
+            order_service_id=self._current_order_service_id,
+            research_info=research_info,
+        )
+        dlg.exec()
+
 
     def _load_research_queue(self):
+        """Загрузка очереди исследований."""
         research = report_repo.get_research_queue()
         self._populate_research_table(research)
 
+
     def _populate_research_table(self, research):
+        """Заполнить таблицу исследований."""
         self.ui.tableResearchQueue.setSortingEnabled(False)
         self.ui.tableResearchQueue.setRowCount(0)
         if not research:
             self.ui.tableResearchQueue.setSortingEnabled(True)
             return
+
         self.ui.tableResearchQueue.setRowCount(len(research))
         for row_idx, item in enumerate(research):
+            # Номер заказа — сортируем как число
             item_order = SortableTableWidgetItem(
                 str(item['order_id']),
                 sort_value=item['order_id']
             )
             item_order.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            # Сохраняем order_service_id в UserRole для последующего использования
+            item_order.setData(Qt.ItemDataRole.UserRole, item['order_service_id'])
             self.ui.tableResearchQueue.setItem(row_idx, 0, item_order)
 
+            # Код сосуда
             item_vessel = SortableTableWidgetItem(str(item['vessel_code']))
             self.ui.tableResearchQueue.setItem(row_idx, 1, item_vessel)
 
+            # Услуга
             item_service = SortableTableWidgetItem(item['service_name'])
             self.ui.tableResearchQueue.setItem(row_idx, 2, item_service)
 
+            # Клиент
             item_client = SortableTableWidgetItem(item['client_name'] or '')
             self.ui.tableResearchQueue.setItem(row_idx, 3, item_client)
 
+            # Результат
             result_text = item['result_value'] if item['result_value'] else 'Не выполнено'
             item_result = SortableTableWidgetItem(result_text)
             item_result.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableResearchQueue.setItem(row_idx, 4, item_result)
+
         self.ui.tableResearchQueue.setSortingEnabled(True)
         self.ui.tableResearchQueue.resizeRowsToContents()
 
+
     def _search_research(self):
+        """Фильтрация очереди исследований по тексту и наличию результата."""
         query = self.ui.editResearchSearch.text().strip().lower()
-        filter_mode = self.ui.comboResearchFilter.currentIndex()
+        filter_mode = self.ui.comboResearchFilter.currentIndex()  # 0=все, 1=без, 2=с
 
         research = report_repo.get_research_queue()
         filtered = []
         for item in research:
+            # Текстовый фильтр
             match_text = True
             if query:
                 search_str = (
@@ -714,27 +832,17 @@ class MainWindow(QMainWindow):
                 ).lower()
                 match_text = query in search_str
 
+            # Фильтр по результату
             match_result = True
-            if filter_mode == 1:
+            if filter_mode == 1:  # Без результата
                 match_result = not bool(item.get('result_value'))
-            elif filter_mode == 2:
+            elif filter_mode == 2:  # С результатом
                 match_result = bool(item.get('result_value'))
 
             if match_text and match_result:
                 filtered.append(item)
 
         self._populate_research_table(filtered)
-
-    def _save_research(self):
-        pass  # TODO: реализовать сохранение результата исследования
-
-    def _clear_research(self):
-        self.ui.editResearchResultValue.clear()
-        self.ui.textResearchConclusion.clear()
-        self.ui.dateResearchResult.setDate(QDate.currentDate())
-
-    def _view_research(self):
-        pass  # TODO: реализовать просмотр результата
 
     # =========================================================================
     # REPORTS — Отчёты
@@ -745,8 +853,6 @@ class MainWindow(QMainWindow):
         self.ui.btnOpenReport.clicked.connect(self._open_report)
         self.ui.btnPrintReport.clicked.connect(self._print_report)
         self.ui.comboreportsOrder.currentIndexChanged.connect(self._on_report_order_changed)
-
-        self._add_reports_search()
 
         self._load_reports_combo()
         self._load_recent_reports()
@@ -812,56 +918,6 @@ class MainWindow(QMainWindow):
             item_employee = SortableTableWidgetItem(r['employee_name'])
             self.ui.tableRecentReports.setItem(row_idx, 3, item_employee)
         self.ui.tableRecentReports.setSortingEnabled(True)
-
-    def _add_reports_search(self):
-        """Программно добавляем поиск над таблицей последних отчётов."""
-        parent = self.ui.tableRecentReports.parent()
-        parent_layout = parent.layout() if parent else None
-        if not parent_layout:
-            return
-
-        search_widget = QWidget()
-        search_layout = QHBoxLayout(search_widget)
-        search_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.editReportsSearch = QLineEdit()
-        self.editReportsSearch.setPlaceholderText(
-            "Поиск по номеру отчёта, коду сосуда или сотруднику...")
-        self.editReportsSearch.textChanged.connect(self._search_reports)
-        search_layout.addWidget(self.editReportsSearch)
-
-        btn_reset = QPushButton("Сбросить")
-        btn_reset.clicked.connect(self._reset_reports_filters)
-        search_layout.addWidget(btn_reset)
-
-        # Вставляем перед таблицей
-        for i in range(parent_layout.count()):
-            item = parent_layout.itemAt(i)
-            if item and item.widget() == self.ui.tableRecentReports:
-                parent_layout.insertWidget(i, search_widget)
-                return
-        parent_layout.addWidget(search_widget)
-
-    def _search_reports(self):
-        query = self.editReportsSearch.text().strip().lower()
-        if not query:
-            self._load_recent_reports()
-            return
-        rows = report_repo.get_recent_reports()
-        filtered = [
-            r for r in rows
-            if query in (
-                f"ОТЧ-{r['report_id']:04d} "
-                f"{r.get('vessel_code', '')} "
-                f"{r.get('employee_name', '')} "
-                f"{format_date(r.get('report_date'))}"
-            ).lower()
-        ]
-        self._populate_recent_reports_table(filtered)
-
-    def _reset_reports_filters(self):
-        self.editReportsSearch.clear()
-        self._load_recent_reports()
 
     def _create_report(self):
         pass  # TODO: реализовать формирование отчёта

@@ -62,3 +62,73 @@ def get_recent_reports(limit: int = 10) -> list[dict]:
             return cur.fetchall()
     finally:
         conn.close()
+
+def save_research_result(order_service_id: int, employee_id: int, 
+                         result_value: str, conclusion: str, result_date) -> int:
+    """Сохранить или обновить результат исследования. Возвращает research_id."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Проверяем, есть ли уже результат
+            cur.execute("""
+                SELECT research_id FROM research_results 
+                WHERE order_service_id = %s
+            """, (order_service_id,))
+            existing = cur.fetchone()
+            
+            if existing:
+                # Обновляем существующий
+                cur.execute("""
+                    UPDATE research_results
+                    SET result_value = %s, conclusion = %s, 
+                        result_date = %s, employee_id = %s
+                    WHERE order_service_id = %s
+                """, (result_value, conclusion, result_date, employee_id, order_service_id))
+                research_id = existing['research_id']
+            else:
+                # Создаём новый
+                cur.execute("""
+                    INSERT INTO research_results 
+                    (order_service_id, result_value, conclusion, result_date, employee_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (order_service_id, result_value, conclusion, result_date, employee_id))
+                research_id = cur.lastrowid
+            
+            conn.commit()
+            return research_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_research_result(order_service_id: int) -> dict | None:
+    """Получить результат исследования по order_service_id."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT research_id, result_value, conclusion, result_date, employee_id
+                FROM research_results
+                WHERE order_service_id = %s
+            """, (order_service_id,))
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def get_all_employees() -> list[dict]:
+    """Получить список активных сотрудников."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT employee_id, full_name, role
+                FROM employees
+                WHERE is_active = 1
+                ORDER BY full_name
+            """)
+            return cur.fetchall()
+    finally:
+        conn.close()
