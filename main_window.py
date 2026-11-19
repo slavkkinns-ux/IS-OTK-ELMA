@@ -1,5 +1,6 @@
 """Главное окно приложения ИС ОТК."""
 import sys
+import os
 from datetime import datetime, date
 
 from PyQt6.QtCore import Qt, QDate
@@ -14,6 +15,7 @@ from session import Session
 from dialogs import (
     OrderDialog, ViewOrderDialog,
     ClientDialog, ClientEditDialog, ClientViewDialog,
+    ReportPreviewDialog, ResearchResultDialog,
 )
 from db import client_repo, order_repo, report_repo
 
@@ -604,31 +606,21 @@ class MainWindow(QMainWindow):
     # RESEARCH — Исследования
     # =========================================================================
 
-    
     def _setup_research_tab(self):
-        """Настройка вкладки исследований."""
-        # Кнопки действий
         self.ui.btnSaveResearchResult.clicked.connect(self._save_research)
         self.ui.btnClearResearchResult.clicked.connect(self._clear_research)
         self.ui.btnViewResearchResult.clicked.connect(self._view_research)
 
-        # Поиск и фильтр
         self.ui.editResearchSearch.textChanged.connect(self._search_research)
         self.ui.comboResearchFilter.currentIndexChanged.connect(self._search_research)
 
-        # Клик по строке таблицы
         self.ui.tableResearchQueue.clicked.connect(self._on_research_row_selected)
 
-        # Инициализация текущего выбранного исследования
         self._current_order_service_id = None
 
-        # Загрузка данных
         self._load_research_queue()
         self._load_employees_combo()
-
-        # Очистка правой панели при старте
         self._clear_research_details()
-
 
     def _load_employees_combo(self):
         """Загрузить список активных сотрудников в comboResearchEmployee."""
@@ -639,33 +631,27 @@ class MainWindow(QMainWindow):
             self.ui.comboResearchEmployee.addItem(emp['full_name'], emp['employee_id'])
         self.ui.comboResearchEmployee.blockSignals(False)
 
-
     def _on_research_row_selected(self, index):
         """Обработка клика по строке в таблице исследований."""
         row = index.row()
         if row < 0:
             return
 
-        # Получаем данные из строки
         order_id = self.ui.tableResearchQueue.item(row, 0).text()
         vessel_code = self.ui.tableResearchQueue.item(row, 1).text()
         service_name = self.ui.tableResearchQueue.item(row, 2).text()
         client_name = self.ui.tableResearchQueue.item(row, 3).text()
 
-        # Показываем в правой панели
         self.ui.lblResearchOrderValue.setText(order_id)
         self.ui.lblResearchVesselValue.setText(vessel_code)
         self.ui.lblResearchClientValue.setText(client_name)
         self.ui.lblResearchServiceValue.setText(service_name)
 
-        # Получаем order_service_id из UserRole
         item = self.ui.tableResearchQueue.item(row, 0)
         order_service_id = item.data(Qt.ItemDataRole.UserRole)
         if order_service_id:
             self._current_order_service_id = order_service_id
-            # Загружаем существующий результат, если есть
             self._load_existing_research_result(order_service_id)
-
 
     def _load_existing_research_result(self, order_service_id: int):
         """Загрузить существующий результат исследования в поля."""
@@ -674,13 +660,12 @@ class MainWindow(QMainWindow):
             self.ui.editResearchResultValue.setText(result.get('result_value', '') or '')
             self.ui.textResearchConclusion.setPlainText(result.get('conclusion', '') or '')
             if result.get('result_date'):
-                from PyQt6.QtCore import QDate
                 result_date = result['result_date']
                 if hasattr(result_date, 'toPyDate'):
                     self.ui.dateResearchResult.setDate(result_date)
                 else:
-                    self.ui.dateResearchResult.setDate(QDate.fromString(str(result_date), 'yyyy-MM-dd'))
-            # Устанавливаем сотрудника, если он есть
+                    self.ui.dateResearchResult.setDate(
+                        QDate.fromString(str(result_date), 'yyyy-MM-dd'))
             if result.get('employee_id'):
                 for i in range(self.ui.comboResearchEmployee.count()):
                     if self.ui.comboResearchEmployee.itemData(i) == result['employee_id']:
@@ -688,7 +673,6 @@ class MainWindow(QMainWindow):
                         break
         else:
             self._clear_research_details()
-
 
     def _clear_research_details(self):
         """Очистить правую панель."""
@@ -698,10 +682,8 @@ class MainWindow(QMainWindow):
         self.ui.lblResearchServiceValue.setText('')
         self.ui.editResearchResultValue.clear()
         self.ui.textResearchConclusion.clear()
-        from PyQt6.QtCore import QDate
         self.ui.dateResearchResult.setDate(QDate.currentDate())
         self._current_order_service_id = None
-
 
     def _save_research(self):
         """Сохранить результат исследования."""
@@ -727,19 +709,15 @@ class MainWindow(QMainWindow):
                 result_date=result_date
             )
             QMessageBox.information(self, "Готово", "Результат исследования сохранён.")
-            # Обновляем таблицу
             self._load_research_queue()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить результат:\n{e}")
-
 
     def _clear_research(self):
         """Очистить поля ввода результата."""
         self.ui.editResearchResultValue.clear()
         self.ui.textResearchConclusion.clear()
-        from PyQt6.QtCore import QDate
         self.ui.dateResearchResult.setDate(QDate.currentDate())
-
 
     def _view_research(self):
         """Просмотреть результат исследования."""
@@ -747,7 +725,6 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Просмотр", "Выберите исследование из списка.")
             return
 
-        # Собираем информацию об исследовании из текущей строки
         row = self.ui.tableResearchQueue.currentRow()
         research_info = {
             'order_id': self.ui.tableResearchQueue.item(row, 0).text(),
@@ -756,7 +733,6 @@ class MainWindow(QMainWindow):
             'client_name': self.ui.tableResearchQueue.item(row, 3).text(),
         }
 
-        from dialogs.research_result_dialog import ResearchResultDialog
         dlg = ResearchResultDialog(
             self,
             order_service_id=self._current_order_service_id,
@@ -764,12 +740,10 @@ class MainWindow(QMainWindow):
         )
         dlg.exec()
 
-
     def _load_research_queue(self):
         """Загрузка очереди исследований."""
         research = report_repo.get_research_queue()
         self._populate_research_table(research)
-
 
     def _populate_research_table(self, research):
         """Заполнить таблицу исследований."""
@@ -781,29 +755,23 @@ class MainWindow(QMainWindow):
 
         self.ui.tableResearchQueue.setRowCount(len(research))
         for row_idx, item in enumerate(research):
-            # Номер заказа — сортируем как число
             item_order = SortableTableWidgetItem(
                 str(item['order_id']),
                 sort_value=item['order_id']
             )
             item_order.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            # Сохраняем order_service_id в UserRole для последующего использования
             item_order.setData(Qt.ItemDataRole.UserRole, item['order_service_id'])
             self.ui.tableResearchQueue.setItem(row_idx, 0, item_order)
 
-            # Код сосуда
             item_vessel = SortableTableWidgetItem(str(item['vessel_code']))
             self.ui.tableResearchQueue.setItem(row_idx, 1, item_vessel)
 
-            # Услуга
             item_service = SortableTableWidgetItem(item['service_name'])
             self.ui.tableResearchQueue.setItem(row_idx, 2, item_service)
 
-            # Клиент
             item_client = SortableTableWidgetItem(item['client_name'] or '')
             self.ui.tableResearchQueue.setItem(row_idx, 3, item_client)
 
-            # Результат
             result_text = item['result_value'] if item['result_value'] else 'Не выполнено'
             item_result = SortableTableWidgetItem(result_text)
             item_result.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -812,16 +780,14 @@ class MainWindow(QMainWindow):
         self.ui.tableResearchQueue.setSortingEnabled(True)
         self.ui.tableResearchQueue.resizeRowsToContents()
 
-
     def _search_research(self):
         """Фильтрация очереди исследований по тексту и наличию результата."""
         query = self.ui.editResearchSearch.text().strip().lower()
-        filter_mode = self.ui.comboResearchFilter.currentIndex()  # 0=все, 1=без, 2=с
+        filter_mode = self.ui.comboResearchFilter.currentIndex()
 
         research = report_repo.get_research_queue()
         filtered = []
         for item in research:
-            # Текстовый фильтр
             match_text = True
             if query:
                 search_str = (
@@ -832,11 +798,10 @@ class MainWindow(QMainWindow):
                 ).lower()
                 match_text = query in search_str
 
-            # Фильтр по результату
             match_result = True
-            if filter_mode == 1:  # Без результата
+            if filter_mode == 1:
                 match_result = not bool(item.get('result_value'))
-            elif filter_mode == 2:  # С результатом
+            elif filter_mode == 2:
                 match_result = bool(item.get('result_value'))
 
             if match_text and match_result:
@@ -854,8 +819,18 @@ class MainWindow(QMainWindow):
         self.ui.btnPrintReport.clicked.connect(self._print_report)
         self.ui.comboreportsOrder.currentIndexChanged.connect(self._on_report_order_changed)
 
+        self._current_report_path = None   # путь к PDF, созданному в этой сессии
+        self._doc_table_label = None       # QLabel с HTML-таблицей исследований
+
         self._load_reports_combo()
         self._load_recent_reports()
+
+        # Сразу показываем предпросмотр для первого заказа
+        order_id = self.ui.comboreportsOrder.currentData()
+        if order_id:
+            self._update_report_preview(order_id)
+
+    # ---------- выбор заказа ----------
 
     def _load_reports_combo(self):
         orders = order_repo.get_all_orders()
@@ -871,21 +846,154 @@ class MainWindow(QMainWindow):
         order_id = self.ui.comboreportsOrder.currentData()
         if order_id:
             self._load_report_research_table(order_id)
+            self._update_report_preview(order_id)
 
     def _load_report_research_table(self, order_id):
         rows = report_repo.get_report_research(order_id)
+        self.ui.tableReportResearch.setSortingEnabled(False)
         self.ui.tableReportResearch.setRowCount(0)
-        if not rows:
-            return
-        self.ui.tableReportResearch.setRowCount(len(rows))
-        for row_idx, r in enumerate(rows):
-            self.ui.tableReportResearch.setItem(
-                row_idx, 0, QTableWidgetItem(r['service_name']))
-            self.ui.tableReportResearch.setItem(
-                row_idx, 1, QTableWidgetItem(r['result_value'] or 'Не выполнено'))
-            self.ui.tableReportResearch.setItem(
-                row_idx, 2, QTableWidgetItem(r['conclusion'] or '-'))
+        if rows:
+            self.ui.tableReportResearch.setRowCount(len(rows))
+            for row_idx, r in enumerate(rows):
+                self.ui.tableReportResearch.setItem(
+                    row_idx, 0, QTableWidgetItem(r['service_name']))
+                self.ui.tableReportResearch.setItem(
+                    row_idx, 1, QTableWidgetItem(r['result_value'] or 'Не выполнено'))
+                self.ui.tableReportResearch.setItem(
+                    row_idx, 2, QTableWidgetItem(r['conclusion'] or '-'))
+        self.ui.tableReportResearch.setSortingEnabled(True)
         self.ui.tableReportResearch.resizeRowsToContents()
+
+    # ---------- встроенный предпросмотр ----------
+
+    def _ensure_document_layout(self):
+        """Гарантирует, что у reportDocumentFrame есть вертикальный layout."""
+        frame = self.ui.reportDocumentFrame
+        lay = frame.layout()
+        if lay is not None:
+            return lay
+
+        # Layout'а нет — собираем детей сверху вниз и упаковываем в QVBoxLayout
+        children = [w for w in frame.children() if w.isWidgetType()]
+        children.sort(key=lambda w: w.geometry().y())
+        lay = QVBoxLayout(frame)
+        lay.setContentsMargins(15, 15, 15, 15)
+        lay.setSpacing(8)
+        for w in children:
+            lay.addWidget(w)
+        return lay
+
+    def _update_report_preview(self, order_id: int):
+        """Заполняет встроенный предпросмотр (reportDocumentFrame)."""
+        order = order_repo.get_order(order_id)
+        if not order:
+            return
+
+        self._preview_order_id = order_id
+        self._current_report_path = None
+
+        # --- Шапка документа ---
+        self.ui.lblDocumentOrganization.setText('ООО "СПбЦ "ЭЛМА""')
+        self.ui.lblDocumentOrganization.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ui.lblDocumentOrganization.setStyleSheet(
+            "font-size: 11pt; font-weight: bold;")
+
+        self.ui.lblDocumentTitle.setText("ОТЧЁТ О РЕЗУЛЬТАТАХ ИССЛЕДОВАНИЙ")
+        self.ui.lblDocumentTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ui.lblDocumentTitle.setStyleSheet(
+            "font-size: 13pt; font-weight: bold; color: #174A7E;")
+
+        # --- Реквизиты ---
+        existing = report_repo.get_report_by_order(order_id)
+        if existing:
+            num_text = (f"Номер отчёта: ОТЧ-{existing['report_id']:04d} "
+                        f"от {format_date(existing['report_date'])}")
+            self._current_report_path = existing.get('file_path')
+        else:
+            num_text = "Номер отчёта: не сформирован"
+
+        self.ui.lblDocumentNumber.setText(num_text)
+        self.ui.lblDocumentOrder.setText(
+            f"Номер заказа: {order['order_id']}    Код сосуда: {order['vessel_code']}    "
+            f"Дата: {format_date(order.get('order_date'))}")
+        self.ui.lblDocumentClient.setText(f"Заказчик: {order.get('client_name') or ''}")
+
+        for name in ("lblDocumentNumber", "lblDocumentOrder", "lblDocumentClient"):
+            getattr(self.ui, name).setStyleSheet("font-size: 10pt;")
+            getattr(self.ui, name).setWordWrap(True)
+
+        self.ui.lblDocumentResearchTitle.setText("Перечень выполненных исследований:")
+        self.ui.lblDocumentResearchTitle.setStyleSheet(
+            "font-size: 11pt; font-weight: bold; color: #244B73;")
+
+        # --- HTML-таблица исследований ---
+        rows = report_repo.get_report_research(order_id)
+        html = ('<table border="1" cellpadding="5" cellspacing="0" '
+                'style="border-collapse:collapse; width:100%;">'
+                '<tr style="background-color:#174A7E; color:#FFFFFF; font-weight:bold;">'
+                '<td width="30">№</td><td>Исследование</td>'
+                '<td>Результат</td><td>Заключение</td></tr>')
+        if rows:
+            for idx, r in enumerate(rows, 1):
+                bg = "#F0F5FA" if idx % 2 == 0 else "#FFFFFF"
+                html += (f'<tr style="background-color:{bg};">'
+                         f'<td align="center">{idx}</td>'
+                         f'<td>{r["service_name"]}</td>'
+                         f'<td>{r["result_value"] or "Не выполнено"}</td>'
+                         f'<td>{r["conclusion"] or "-"}</td></tr>')
+        else:
+            html += '<tr><td colspan="4" align="center">Исследования не назначены</td></tr>'
+        html += '</table>'
+
+        lay = self._ensure_document_layout()
+        if self._doc_table_label is None:
+            self._doc_table_label = QLabel()
+            self._doc_table_label.setWordWrap(True)
+            self._doc_table_label.setTextFormat(Qt.TextFormat.RichText)
+            self._doc_table_label.setAlignment(
+                Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+            # вставляем сразу после заголовка «Перечень исследований»
+            idx = lay.indexOf(self.ui.lblDocumentResearchTitle)
+            lay.insertWidget(idx + 1 if idx >= 0 else lay.count(), self._doc_table_label)
+        self._doc_table_label.setText(html)
+
+        # --- Заключение ---
+        conclusions = [r['conclusion'] for r in rows if r.get('conclusion')]
+        if conclusions:
+            conclusion_text = "Заключение: " + "; ".join(conclusions)
+        elif rows and all(r.get('result_value') for r in rows):
+            conclusion_text = "Заключение: все исследования выполнены."
+        else:
+            conclusion_text = "Заключение: часть исследований ещё не выполнена."
+        self.ui.lblDocumentConclusion.setText(conclusion_text)
+        self.ui.lblDocumentConclusion.setWordWrap(True)
+        self.ui.lblDocumentConclusion.setStyleSheet("font-size: 10pt; padding-top: 8px;")
+
+        # --- Информация о клиенте слева (если такие метки есть в UI) ---
+        self._fill_client_info_panel(order)
+
+    def _fill_client_info_panel(self, order: dict):
+        """Заполняет левый блок «Информация о клиенте», если метки существуют."""
+        client_name = order.get('client_name') or ''
+        details = ''
+        try:
+            info = client_repo.get_client_details(order['client_id'])
+            if info:
+                parts = [info.get('phone'), info.get('email')]
+                details = ", ".join(p for p in parts if p)
+        except Exception:
+            pass
+
+        for name in ("lblReportClientName", "lblReportClientValue",
+                     "lblClientNameValue", "lblReportClient"):
+            if hasattr(self.ui, name):
+                getattr(self.ui, name).setText(client_name)
+        for name in ("lblReportClientContact", "lblReportClientContactValue",
+                     "lblClientContactValue"):
+            if hasattr(self.ui, name):
+                getattr(self.ui, name).setText(details or "—")
+
+    # ---------- последние отчёты ----------
 
     def _load_recent_reports(self):
         rows = report_repo.get_recent_reports()
@@ -894,36 +1002,110 @@ class MainWindow(QMainWindow):
     def _populate_recent_reports_table(self, rows):
         self.ui.tableRecentReports.setSortingEnabled(False)
         self.ui.tableRecentReports.setRowCount(0)
-        if not rows:
-            self.ui.tableRecentReports.setSortingEnabled(True)
-            return
-        self.ui.tableRecentReports.setRowCount(len(rows))
-        for row_idx, r in enumerate(rows):
-            item_report_id = SortableTableWidgetItem(
-                f"ОТЧ-{r['report_id']:04d}",
-                sort_value=r['report_id']
-            )
-            self.ui.tableRecentReports.setItem(row_idx, 0, item_report_id)
+        if rows:
+            self.ui.tableRecentReports.setRowCount(len(rows))
+            for row_idx, r in enumerate(rows):
+                item_report_id = SortableTableWidgetItem(
+                    f"ОТЧ-{r['report_id']:04d}", sort_value=r['report_id'])
+                self.ui.tableRecentReports.setItem(row_idx, 0, item_report_id)
 
-            item_vessel = SortableTableWidgetItem(r['vessel_code'])
-            self.ui.tableRecentReports.setItem(row_idx, 1, item_vessel)
+                item_vessel = SortableTableWidgetItem(r['vessel_code'])
+                self.ui.tableRecentReports.setItem(row_idx, 1, item_vessel)
 
-            item_date = SortableTableWidgetItem(
-                format_date(r['report_date']),
-                sort_value=r['report_date']
-            )
-            item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableRecentReports.setItem(row_idx, 2, item_date)
+                item_date = SortableTableWidgetItem(
+                    format_date(r['report_date']), sort_value=r['report_date'])
+                item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.ui.tableRecentReports.setItem(row_idx, 2, item_date)
 
-            item_employee = SortableTableWidgetItem(r['employee_name'])
-            self.ui.tableRecentReports.setItem(row_idx, 3, item_employee)
+                item_employee = SortableTableWidgetItem(r['employee_name'])
+                self.ui.tableRecentReports.setItem(row_idx, 3, item_employee)
         self.ui.tableRecentReports.setSortingEnabled(True)
 
+    # ---------- действия ----------
+
     def _create_report(self):
-        pass  # TODO: реализовать формирование отчёта
+        """Формирует PDF по заказу из предпросмотра."""
+        order_id = getattr(self, '_preview_order_id', None) \
+            or self.ui.comboreportsOrder.currentData()
+        if not order_id:
+            QMessageBox.warning(self, "Формирование отчёта", "Выберите заказ.")
+            return
+
+        try:
+            from report_generator import generate_report_pdf
+            filepath = generate_report_pdf(order_id)
+            report_id = report_repo.create_report(
+                order_id, Session.get_user_id(), filepath)
+
+            self._current_report_path = filepath
+            self.ui.lblDocumentNumber.setText(
+                f"Номер отчёта: ОТЧ-{report_id:04d} от {datetime.now().strftime('%d.%m.%Y')}")
+
+            self._load_recent_reports()
+            QMessageBox.information(
+                self, "Отчёт сформирован",
+                f"Отчёт ОТЧ-{report_id:04d} сохранён.\nФайл: {filepath}")
+        except ImportError:
+            QMessageBox.critical(self, "Ошибка",
+                                 "Не установлена библиотека reportlab.\n"
+                                 "Выполните: pip install reportlab")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать отчёт:\n{e}")
+
+    def _resolve_report_path(self) -> str | None:
+        """Определяет, какой файл открывать/печатать.
+        Приоритет: выбранный в таблице отчёт → созданный в предпросмотре → отчёт по заказу."""
+        row = self.ui.tableRecentReports.currentRow()
+        if row >= 0:
+            item = self.ui.tableRecentReports.item(row, 0)
+            if item:
+                try:
+                    report_id = int(item.text().replace("ОТЧ-", ""))
+                    rep = report_repo.get_report(report_id)
+                    if rep and rep.get('file_path'):
+                        return rep['file_path']
+                except ValueError:
+                    pass
+
+        if self._current_report_path:
+            return self._current_report_path
+
+        order_id = self.ui.comboreportsOrder.currentData()
+        if order_id:
+            rep = report_repo.get_report_by_order(order_id)
+            if rep and rep.get('file_path'):
+                return rep['file_path']
+        return None
 
     def _open_report(self):
-        pass  # TODO: реализовать открытие PDF
+        path = self._resolve_report_path()
+        if not path or not os.path.exists(path):
+            QMessageBox.warning(self, "Открытие отчёта",
+                                "Файл отчёта не найден.\nСначала нажмите «Сформировать отчёт».")
+            return
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                import subprocess
+                subprocess.Popen(['open', path])
+            else:
+                import subprocess
+                subprocess.Popen(['xdg-open', path])
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл:\n{e}")
 
     def _print_report(self):
-        pass  # TODO: реализовать печать
+        path = self._resolve_report_path()
+        if not path or not os.path.exists(path):
+            QMessageBox.warning(self, "Печать отчёта",
+                                "Файл отчёта не найден.\nСначала нажмите «Сформировать отчёт».")
+            return
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path, 'print')
+            else:
+                import subprocess
+                subprocess.Popen(['lp', path])
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось отправить на печать:\n{e}")
