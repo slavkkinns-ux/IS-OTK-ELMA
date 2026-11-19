@@ -7,9 +7,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QDate
 from PyQt6 import QtCore, QtGui, QtWidgets
 from ui.main_window_ui import Ui_MainWindow
-from session import Session, Role
+from session import Session
 from db import client_repo, order_repo, report_repo
-import hashlib
 
 
 class OrderDialog(QDialog):
