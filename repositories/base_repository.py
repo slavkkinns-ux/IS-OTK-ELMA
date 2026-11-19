@@ -1,86 +1,58 @@
-"""Базовый репозиторий: общее подключение и выполнение SQL-запросов."""
+from db.connection import get_connection
+import logging
 
-import pymysql
-from pymysql.cursors import DictCursor
-from config import DB_CONFIG
+logger = logging.getLogger(__name__)
 
 
 class BaseRepository:
-    """Общая логика подключения к MySQL и выполнения запросов.
+    """Базовый класс для всех репозиториев."""
 
-    Соединение хранится на уровне класса, чтобы все репозитории
-    работали через одно подключение, как прежний синглтон Database.
-    """
-
-    _connection = None
-
-    def connect(self):
-        """Открывает соединение с базой, если оно ещё не открыто."""
-        if self._connection and self._connection.open:
-            return
-
+    def execute_query(self, query: str, params: tuple = None) -> list:
+        """Выполняет SELECT и возвращает список словарей."""
+        conn = get_connection()
         try:
-            BaseRepository._connection = pymysql.connect(
-                host=DB_CONFIG['host'],
-                user=DB_CONFIG['user'],
-                password=DB_CONFIG['password'],
-                database=DB_CONFIG['database'],
-                cursorclass=DictCursor,
-                charset='utf8mb4'
-            )
-        except pymysql.Error as e:
-            print(f"Ошибка подключения к БД: {e}")
-            raise
-
-    def get_connection(self):
-        """Возвращает активное соединение, открывая его при необходимости."""
-        if not self._connection or not self._connection.open:
-            self.connect()
-        return self._connection
-
-    def execute_query(self, query, params=None):
-        """Выполняет запрос и возвращает все строки результата.
-
-        Args:
-            query: SQL-запрос с плейсхолдерами %s.
-            params: Параметры запроса.
-
-        Returns:
-            Список словарей с результатом выборки.
-        """
-        connection = self.get_connection()
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(query, params)
-                connection.commit()
+            with conn.cursor() as cursor:
+                cursor.execute(query, params or ())
                 return cursor.fetchall()
-        except pymysql.Error as e:
-            print(f"Ошибка выполнения запроса: {e}")
-            connection.rollback()
+        except Exception as e:
+            logger.error(f"Ошибка выполнения запроса: {e}\nQuery: {query}")
             raise
 
-    def execute_insert(self, query, params=None):
-        """Выполняет INSERT и возвращает идентификатор новой строки.
-
-        Args:
-            query: SQL-запрос с плейсхолдерами %s.
-            params: Параметры запроса.
-
-        Returns:
-            Идентификатор вставленной строки.
-        """
-        connection = self.get_connection()
+    def execute_insert(self, query: str, params: tuple = None) -> int:
+        """Выполняет INSERT и возвращает lastrowid."""
+        conn = get_connection()
         try:
-            with connection.cursor() as cursor:
-                cursor.execute(query, params)
-                connection.commit()
+            with conn.cursor() as cursor:
+                cursor.execute(query, params or ())
+                conn.commit()
                 return cursor.lastrowid
-        except pymysql.Error as e:
-            print(f"Ошибка вставки: {e}")
-            connection.rollback()
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Ошибка вставки: {e}\nQuery: {query}")
             raise
 
-    def close(self):
-        """Закрывает общее соединение с базой данных."""
-        if self._connection and self._connection.open:
-            self._connection.close()
+    def execute_update(self, query: str, params: tuple = None) -> int:
+        """Выполняет UPDATE и возвращает количество изменённых строк."""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params or ())
+                conn.commit()
+                return cursor.rowcount
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Ошибка обновления: {e}\nQuery: {query}")
+            raise
+
+    def execute_delete(self, query: str, params: tuple = None) -> int:
+        """Выполняет DELETE и возвращает количество удалённых строк."""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params or ())
+                conn.commit()
+                return cursor.rowcount
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Ошибка удаления: {e}\nQuery: {query}")
+            raise

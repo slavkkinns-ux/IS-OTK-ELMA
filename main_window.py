@@ -1,14 +1,39 @@
+import sys
 from PyQt6.QtWidgets import QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem, QMessageBox, QDialog
 from PyQt6.QtCore import Qt
 from PyQt6 import QtCore, QtGui, QtWidgets
 from ui.main_window_ui import Ui_MainWindow
-from session import Session, Role
+from session import Session
+from dialogs import OrderDialog, ViewOrderDialog
 from db import client_repo, order_repo, report_repo
+
+from datetime import datetime, date
+
+def format_date(value) -> str:
+    """Безопасно форматирует дату/дата-время в строку вида ДД.ММ.ГГГГ."""
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        return value.strftime('%d.%m.%Y')
+    if isinstance(value, date):
+        return value.strftime('%d.%m.%Y')
+    return str(value)
+
 
 class MainWindow(QMainWindow):
     def __init__(self, app):
         super().__init__()
         self.app = app
+
+        # Инициализация БД
+        from db import connect
+        try:
+            connect()
+        except Exception as e:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(None, "Ошибка", f"Не удалось подключиться к БД:\n{e}")
+            sys.exit(1)
+
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
@@ -27,6 +52,11 @@ class MainWindow(QMainWindow):
         self._setup_clients_tab()
         self._setup_research_tab()
         self._setup_reports_tab()
+
+    def closeEvent(self, event):
+        from db import close
+        close()
+        event.accept()
 
     def _setup_sidebar(self):
             sidebar_style = self.ui.sidebarFrame.styleSheet()
@@ -183,6 +213,12 @@ class MainWindow(QMainWindow):
         self.ui.btnEditOrder.clicked.connect(self._edit_order)
         self.ui.btnViewOrder.clicked.connect(self._view_order)
         self.ui.btnRefreshOrder.clicked.connect(self._load_orders_stats)
+
+        if hasattr(self.ui, "lineEditSearchOrder"):
+            self.ui.lineEditSearchOrder.textChanged.connect(self._search_orders)
+        if hasattr(self.ui, "btnSearchOrder"):
+            self.ui.btnSearchOrder.clicked.connect(self._search_orders)
+
         self._load_orders_stats()
         self._load_orders_table()
 
@@ -253,13 +289,59 @@ class MainWindow(QMainWindow):
         self.ui.stackedWidget.setCurrentWidget(self.ui.pageOrders)
 
     def _add_order(self):
-        pass
+        dlg = OrderDialog(self, order_id=None)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._load_orders_table()
+            self._load_orders_stats()
+            self._load_home_stats()
+            self._load_recent_orders()
+            self._load_reports_combo()
 
     def _search_orders(self):
-        pass
+        # Поддерживаем и live-поиск (textChanged), и клик по кнопке
+        query = ""
+        if hasattr(self.ui, "lineEditSearchOrder"):
+            query = self.ui.lineEditSearchOrder.text().strip()
+
+        self.ui.tableOrders.setRowCount(0)
+        if not query:
+            self._load_orders_table()
+            return
+
+        rows = order_repo.search_orders(query)
+        if not rows:
+            return
+        self.ui.tableOrders.setRowCount(len(rows))
+        for r_idx, o in enumerate(rows):
+            self.ui.tableOrders.setItem(r_idx, 0, QTableWidgetItem(str(o['vessel_code'])))
+            self.ui.tableOrders.setItem(r_idx, 1, QTableWidgetItem(o.get('client_name') or ''))
+            d = QTableWidgetItem(str(o.get('order_date') or ''))
+            d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableOrders.setItem(r_idx, 2, d)
+            self.ui.tableOrders.setItem(r_idx, 3, QTableWidgetItem(o.get('employee_name') or ''))
+            s = QTableWidgetItem(o.get('status') or '')
+            s.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.ui.tableOrders.setItem(r_idx, 4, s)
+            self.ui.tableOrders.setItem(r_idx, 5, QTableWidgetItem('-'))
+            self.ui.tableOrders.setItem(r_idx, 6, QTableWidgetItem(''))
+        # Сохраняем order_id в userRole первой колонки, чтобы не зависеть от порядка
+        for r_idx, o in enumerate(rows):
+            self.ui.tableOrders.item(r_idx, 0).setData(Qt.ItemDataRole.UserRole, o['order_id'])
 
     def _edit_order(self):
-        pass
+        row = self.ui.tableOrders.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "Редактирование", "Выберите заказ в таблице.")
+            return
+        order_id = self._get_selected_order_id(row)
+        if not order_id:
+            return
+        dlg = OrderDialog(self, order_id=order_id)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._load_orders_table()
+            self._load_orders_stats()
+            self._load_recent_orders()
+            self._load_reports_combo()
 
     def _add_client(self):
         pass
@@ -271,7 +353,15 @@ class MainWindow(QMainWindow):
         pass
 
     def _view_order(self):
-        pass
+        row = self.ui.tableOrders.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "Просмотр", "Выберите заказ в таблице.")
+            return
+        order_id = self._get_selected_order_id(row)
+        if not order_id:
+            return
+        dlg = ViewOrderDialog(self, order_id=order_id)
+        dlg.exec()
 
     def _clear_research(self):
         pass
@@ -284,6 +374,23 @@ class MainWindow(QMainWindow):
 
     def _print_report(self):
         pass
+
+    def _get_selected_order_id(self, row: int) -> int | None:
+        """Берём order_id из UserRole первой ячейки выбранной строки.
+        Если его там нет — ищем в репозитории по vessel_code (fallback)."""
+        item = self.ui.tableOrders.item(row, 0)
+        if item is None:
+            return None
+        oid = item.data(Qt.ItemDataRole.UserRole)
+        if oid:
+            return int(oid)
+        # Fallback: ищем по коду судна
+        vessel = item.text()
+        orders = order_repo.get_all_orders()
+        for o in orders:
+            if o.get('vessel_code') == vessel:
+                return o['order_id']
+        return None
 
     def _refresh_clients_page(self):
         self._load_clients_to_table()
@@ -317,15 +424,11 @@ class MainWindow(QMainWindow):
 
     def _load_recent_orders(self):
         orders = order_repo.get_recent_orders(limit=5)
-        
         self.ui.tableRecentOrders.setRowCount(0)
-        
         if not orders:
             print("ЗАКАЗОВ НЕТ")
             return
-
         self.ui.tableRecentOrders.setRowCount(len(orders))
-        
         for row_idx, order in enumerate(orders):   
             item_vessel = QTableWidgetItem(str(order['vessel_code']))
             self.ui.tableRecentOrders.setItem(row_idx, 0, item_vessel)
@@ -333,7 +436,7 @@ class MainWindow(QMainWindow):
             item_client = QTableWidgetItem(order['client_name'] or '')
             self.ui.tableRecentOrders.setItem(row_idx, 1, item_client)
             
-            item_date = QTableWidgetItem(order['order_date'] or '')
+            item_date = QTableWidgetItem(format_date(order['order_date']))
             item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableRecentOrders.setItem(row_idx, 2, item_date)
             
@@ -343,22 +446,19 @@ class MainWindow(QMainWindow):
 
     def _load_orders_table(self):
         orders = order_repo.get_all_orders()
-        
         self.ui.tableOrders.setRowCount(0)
-        
         if not orders:
             return
-
         self.ui.tableOrders.setRowCount(len(orders))
-        
         for row_idx, order in enumerate(orders):
             item_vessel = QTableWidgetItem(str(order['vessel_code']))
+            item_vessel.setData(Qt.ItemDataRole.UserRole, order['order_id'])  # <-- для диалогов
             self.ui.tableOrders.setItem(row_idx, 0, item_vessel)
             
             item_client = QTableWidgetItem(order['client_name'] or '')
             self.ui.tableOrders.setItem(row_idx, 1, item_client)
             
-            item_date = QTableWidgetItem(order['order_date'] or '')
+            item_date = QTableWidgetItem(format_date(order['order_date']))
             item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableOrders.setItem(row_idx, 2, item_date)
             
@@ -440,18 +540,16 @@ class MainWindow(QMainWindow):
 
     def _load_recent_reports(self):
         rows = report_repo.get_recent_reports()
-
         self.ui.tableRecentReports.setRowCount(0)
         if not rows:
             return
-
         self.ui.tableRecentReports.setRowCount(len(rows))
         for row_idx, r in enumerate(rows):
             self.ui.tableRecentReports.setItem(row_idx, 0, QTableWidgetItem(f"ОТЧ-{r['report_id']:04d}"))
             self.ui.tableRecentReports.setItem(row_idx, 1, QTableWidgetItem(r['vessel_code']))
-
-            item_date = QTableWidgetItem(r['report_date'])
+            
+            item_date = QTableWidgetItem(format_date(r['report_date']))
             item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.ui.tableRecentReports.setItem(row_idx, 2, item_date)
-
+            
             self.ui.tableRecentReports.setItem(row_idx, 3, QTableWidgetItem(r['employee_name']))

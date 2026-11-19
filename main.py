@@ -7,6 +7,7 @@ from choose_login import ChooseLoginDialog
 from employee_login import EmployeeLoginDialog
 from client_login import ClientLoginDialog
 from session import Session
+from datetime import datetime, date 
 
 THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
 
@@ -20,6 +21,16 @@ def load_theme(app, theme_name="light"):
             app.setStyleSheet(f.read())
     except Exception:
         pass
+
+def format_date(value) -> str:
+    """Безопасно форматирует дату/дата-время в строку вида ДД.ММ.ГГГГ."""
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        return value.strftime('%d.%m.%Y')
+    if isinstance(value, date):
+        return value.strftime('%d.%m.%Y')
+    return str(value)
 
 
 def run_app():
