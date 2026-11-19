@@ -1,3 +1,4 @@
+"""Модуль управления соединением с БД (синглтон)."""
 import pymysql
 from pymysql import Error
 from config import DB_CONFIG
@@ -7,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
+    """Синглтон, хранит одно активное соединение."""
+
     _instance = None
     _connection = None
 
@@ -16,13 +19,13 @@ class ConnectionManager:
         return cls._instance
 
     def get_connection(self):
+        """Возвращает активное соединение, открывая его при необходимости."""
         if self._connection is None or not self._connection.open:
             try:
-                # cursorclass задаём здесь, а не в config
                 self._connection = pymysql.connect(
                     **DB_CONFIG,
                     cursorclass=pymysql.cursors.DictCursor,
-                    autocommit=False
+                    autocommit=False,
                 )
                 logger.info("Соединение с БД установлено")
             except Error as e:
@@ -31,6 +34,7 @@ class ConnectionManager:
         return self._connection
 
     def close(self):
+        """Закрывает соединение."""
         if self._connection and self._connection.open:
             self._connection.close()
             self._connection = None
@@ -41,8 +45,10 @@ connection_manager = ConnectionManager()
 
 
 def get_connection():
+    """Публичная функция — используется во всех репозиториях."""
     return connection_manager.get_connection()
 
 
 def close_connection():
+    """Публичная функция — вызывается при закрытии приложения."""
     connection_manager.close()

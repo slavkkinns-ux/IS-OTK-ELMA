@@ -1,227 +1,202 @@
+"""Диалог создания/редактирования заказа."""
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QLineEdit, QComboBox, QTableWidget, QTableWidgetItem,
-    QPushButton, QMessageBox, QHeaderView, QGroupBox, QLabel,
-    QDoubleSpinBox, QAbstractItemView
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QComboBox, QCheckBox, QPushButton, QMessageBox, QGroupBox,
+    QScrollArea, QWidget, QFormLayout
 )
-from PyQt6.QtCore import Qt
-from db import client_repo, order_repo
+from db import order_repo, client_repo, services_repo
 from session import Session
+from dialogs.client_dialog import ClientDialog
 
 
 class OrderDialog(QDialog):
-    """Единый диалог для создания и редактирования заказа."""
-
-    def __init__(self, parent=None, order_id: int = None):
+    def __init__(self, parent, order_id=None):
         super().__init__(parent)
-        self.order_id = order_id          # None = создание, иначе — редактирование
-        self.is_edit = order_id is not None
-        self.services_cache = []          # кэш справочника услуг
-        self.setWindowTitle(
-            "Редактирование заказа" if self.is_edit else "Новый заказ"
-        )
-        self.setMinimumSize(720, 560)
-        self._build_ui()
-        self._load_references()
-        if self.is_edit:
-            self._load_order()
+        self.order_id = order_id
+        self.services = services_repo.get_all_services()
+        self.service_checks: list[QCheckBox] = []
+        self.setWindowTitle("Новый заказ" if order_id is None else "Редактирование заказа")
+        self.setMinimumWidth(560)
+        self._setup_ui()
+        self._reload_clients()
 
-    # --------------------- UI ---------------------
-    def _build_ui(self):
+        # При редактировании — загружаем данные, при создании — подставляем подсказку
+        if self.order_id is not None:
+            self._load_order()
+        else:
+            self._fill_suggested_code()
+
+    def _setup_ui(self):
         root = QVBoxLayout(self)
 
-        # --- Блок основных полей ---
-        grp_main = QGroupBox("Основные данные")
-        form = QFormLayout(grp_main)
+        code_box = QGroupBox("Код лабораторного сосуда")
+        code_lay = QFormLayout(code_box)
+        self.editVesselCode = QLineEdit()
+        self.editVesselCode.setPlaceholderText("Например: С-0042")
+        code_lay.addRow("Код сосуда:", self.editVesselCode)
+        root.addWidget(code_box)
 
-        self.edt_vessel = QLineEdit()
-        self.edt_vessel.setPlaceholderText("Например: VSL-00123")
-        form.addRow("Код судна *:", self.edt_vessel)
+        client_box = QGroupBox("Заказчик")
+        client_lay = QFormLayout(client_box)
 
-        self.cmb_client = QComboBox()
-        self.cmb_client.setEditable(False)
-        form.addRow("Клиент *:", self.cmb_client)
+        self.comboClientType = QComboBox()
+        self.comboClientType.addItems(["ЮЛ", "ФЛ"])
+        self.comboClientType.currentTextChanged.connect(self._reload_clients)
+        client_lay.addRow("Тип заказчика:", self.comboClientType)
 
-        self.cmb_status = QComboBox()
-        self.cmb_status.addItems(["Новый", "В работе", "Ожидает проверки", "Завершён", "Отменён"])
-        form.addRow("Статус:", self.cmb_status)
+        self.comboClient = QComboBox()
+        client_lay.addRow("Клиент:", self.comboClient)
 
-        self.lbl_employee = QLabel(Session.get_display_name())
-        form.addRow("Сотрудник:", self.lbl_employee)
+        btn_row = QHBoxLayout()
+        self.btnNewClient = QPushButton("+ Добавить нового клиента")
+        self.btnNewClient.clicked.connect(self._open_new_client_dialog)
+        btn_row.addWidget(self.btnNewClient)
+        btn_row.addStretch()
+        client_lay.addRow(btn_row)
+        root.addWidget(client_box)
 
-        root.addWidget(grp_main)
+        services_box = QGroupBox("Исследования / услуги")
+        services_lay = QVBoxLayout(services_box)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        self.services_layout = QVBoxLayout(scroll_widget)
+        for s in self.services:
+            cb = QCheckBox(f"{s['service_name']}  —  {float(s['price']):.2f} ₽")
+            cb.service_id = s['service_id']
+            cb.price = float(s['price'])
+            cb.stateChanged.connect(self._recalc_total)
+            self.service_checks.append(cb)
+            self.services_layout.addWidget(cb)
+        self.services_layout.addStretch()
+        scroll.setWidget(scroll_widget)
+        services_lay.addWidget(scroll)
+        root.addWidget(services_box)
 
-        # --- Блок услуг ---
-        grp_services = QGroupBox("Услуги в заказе")
-        vb = QVBoxLayout(grp_services)
+        total_lay = QHBoxLayout()
+        total_lay.addWidget(QLabel("Итого:"))
+        self.lblTotal = QLabel("0.00 ₽")
+        self.lblTotal.setStyleSheet("font-size: 14pt; font-weight: bold; color: #174A7E;")
+        total_lay.addWidget(self.lblTotal)
+        total_lay.addStretch()
+        root.addLayout(total_lay)
 
-        self.tbl_services = QTableWidget(0, 3)
-        self.tbl_services.setHorizontalHeaderLabels(["Услуга", "Цена", ""])
-        hdr = self.tbl_services.horizontalHeader()
-        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.tbl_services.verticalHeader().setVisible(False)
-        self.tbl_services.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        vb.addWidget(self.tbl_services)
-
-        # Панель добавления услуги
-        add_row = QHBoxLayout()
-        self.cmb_service = QComboBox()
-        self.cmb_service.setSizePolicy(
-            self.cmb_service.sizePolicy().horizontalPolicy(),
-            self.cmb_service.sizePolicy().verticalPolicy()
-        )
-        add_row.addWidget(QLabel("Добавить услугу:"))
-        add_row.addWidget(self.cmb_service, 1)
-
-        self.btn_add_service = QPushButton("Добавить")
-        self.btn_add_service.clicked.connect(self._on_add_service)
-        add_row.addWidget(self.btn_add_service)
-
-        self.btn_remove_service = QPushButton("Удалить выбранную")
-        self.btn_remove_service.clicked.connect(self._on_remove_service)
-        add_row.addWidget(self.btn_remove_service)
-
-        vb.addLayout(add_row)
-
-        self.lbl_total = QLabel("Итого: 0.00 ₽")
-        self.lbl_total.setStyleSheet("font-weight: bold; font-size: 14px;")
-        vb.addWidget(self.lbl_total)
-
-        root.addWidget(grp_services, 1)
-
-        # --- Кнопки сохранения ---
         btns = QHBoxLayout()
-        btns.addStretch()
-        self.btn_save = QPushButton("Сохранить")
-        self.btn_save.setDefault(True)
-        self.btn_save.clicked.connect(self._on_save)
-        btns.addWidget(self.btn_save)
-
-        self.btn_cancel = QPushButton("Отмена")
-        self.btn_cancel.clicked.connect(self.reject)
-        btns.addWidget(self.btn_cancel)
+        btn_save = QPushButton("Сохранить")
+        btn_save.clicked.connect(self._save)
+        btn_cancel = QPushButton("Отмена")
+        btn_cancel.clicked.connect(self.reject)
+        btns.addWidget(btn_save)
+        btns.addWidget(btn_cancel)
         root.addLayout(btns)
 
-        # Выбранные услуги: список словарей {service_id, service_name, price}
-        self._selected_services = []
+    def _fill_suggested_code(self):
+        suggested = order_repo.get_next_vessel_code()
+        self.editVesselCode.setText(suggested)
+        self.editVesselCode.selectAll()
 
-    # --------------------- Загрузка справочников ---------------------
-    def _load_references(self):
-        # Клиенты
-        clients = client_repo.get_all_clients()
-        self.cmb_client.clear()
+    def _reload_clients(self):
+        ctype = self.comboClientType.currentText()
+        clients = client_repo.get_clients_by_type(ctype)
+        self.comboClient.clear()
         for c in clients:
-            self.cmb_client.addItem(f"{c['name']}  ({c['details']})", c['client_id'])
+            display = f"{c['name']} ({c['contact_person']})" if c.get('contact_person') else c['name']
+            self.comboClient.addItem(display, c['client_id'])
 
-        # Услуги (только активные)
-        self.services_cache = order_repo.get_active_services()
-        self.cmb_service.clear()
-        for s in self.services_cache:
-            self.cmb_service.addItem(f"{s['service_name']} — {s['price']:.2f} ₽", s['service_id'])
+    def _open_new_client_dialog(self):
+        dlg = ClientDialog(self, initial_type=self.comboClientType.currentText())
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._reload_clients()
+            if self.comboClient.count() > 0:
+                self.comboClient.setCurrentIndex(self.comboClient.count() - 1)
 
-    # --------------------- Загрузка заказа при редактировании ---------------------
+    def _recalc_total(self):
+        total = sum(cb.price for cb in self.service_checks if cb.isChecked())
+        self.lblTotal.setText(f"{total:.2f} ₽")
+
     def _load_order(self):
-        data = order_repo.get_order(self.order_id)
-        if not data:
-            QMessageBox.warning(self, "Ошибка", "Заказ не найден.")
+        """Загружает данные существующего заказа для редактирования."""
+        order = order_repo.get_order(self.order_id)
+        if not order:
             return
 
-        self.edt_vessel.setText(data['vessel_code'])
+        # Код сосуда
+        self.editVesselCode.setText(order['vessel_code'])
 
-        # Клиент
-        idx = self.cmb_client.findData(data['client_id'])
-        if idx >= 0:
-            self.cmb_client.setCurrentIndex(idx)
+        # Тип клиента — устанавливаем ДО загрузки списка, чтобы _reload_clients подтянул нужных
+        client_type = order.get('client_type', 'ЮЛ')
+        self.comboClientType.setCurrentText(client_type)
 
-        # Статус
-        s_idx = self.cmb_status.findText(data['status'])
-        if s_idx >= 0:
-            self.cmb_status.setCurrentIndex(s_idx)
+        # Перезагружаем клиентов под выбранный тип и выбираем нужного
+        self._reload_clients()
+        for i in range(self.comboClient.count()):
+            if self.comboClient.itemData(i) == order['client_id']:
+                self.comboClient.setCurrentIndex(i)
+                break
 
-        # Услуги
-        self._selected_services = order_repo.get_order_services(self.order_id)
-        self._render_services_table()
+        # Загружаем услуги — отмечаем нужные чекбоксы
+        services = order_repo.get_order_services(self.order_id)
+        service_ids = [s['service_id'] for s in services]
+        for cb in self.service_checks:
+            cb.setChecked(cb.service_id in service_ids)
 
-    # --------------------- Работа с таблицей услуг ---------------------
-    def _render_services_table(self):
-        self.tbl_services.setRowCount(0)
-        total = 0.0
-        for row_idx, s in enumerate(self._selected_services):
-            self.tbl_services.insertRow(row_idx)
-            self.tbl_services.setItem(row_idx, 0, QTableWidgetItem(s['service_name']))
-            price_item = QTableWidgetItem(f"{float(s['price']):.2f}")
-            price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            self.tbl_services.setItem(row_idx, 1, price_item)
-            # Кнопка "Удалить" в строке
-            btn_del = QPushButton("✕")
-            btn_del.setFixedWidth(32)
-            btn_del.setProperty("row_index", row_idx)
-            btn_del.clicked.connect(self._on_row_delete_clicked)
-            self.tbl_services.setCellWidget(row_idx, 2, btn_del)
-            total += float(s['price'])
-        self.lbl_total.setText(f"Итого: {total:.2f} ₽")
+        self._recalc_total()
 
-    def _on_add_service(self):
-        if self.cmb_service.count() == 0:
-            QMessageBox.information(self, "Внимание", "Нет доступных услуг.")
-            return
-        sid = self.cmb_service.currentData()
-        sname = self.cmb_service.currentText()
-        price = next((s['price'] for s in self.services_cache if s['service_id'] == sid), 0)
-        self._selected_services.append({
-            "service_id": sid,
-            "service_name": sname.split(" — ")[0],
-            "price": float(price)
-        })
-        self._render_services_table()
+    def _validate_vessel_code(self, code: str) -> str | None:
+        if not code.strip():
+            return "Введите код сосуда."
+        # При редактировании исключаем текущий заказ из проверки дубликата
+        if order_repo.vessel_code_exists(
+            code.strip(),
+            exclude_archived=True,
+            exclude_order_id=self.order_id,
+        ):
+            return (f"Код «{code}» уже используется в активных заказах.\n"
+                    "Введите другой или используйте предложенный.")
+        return None
 
-    def _on_remove_service(self):
-        row = self.tbl_services.currentRow()
-        if row < 0 or row >= len(self._selected_services):
-            return
-        self._selected_services.pop(row)
-        self._render_services_table()
-
-    def _on_row_delete_clicked(self):
-        btn = self.sender()
-        row = btn.property("row_index")
-        if 0 <= row < len(self._selected_services):
-            self._selected_services.pop(row)
-            self._render_services_table()
-
-    # --------------------- Валидация и сохранение ---------------------
-    def _validate(self):
-        vessel = self.edt_vessel.text().strip()
-        if not vessel:
-            QMessageBox.warning(self, "Ошибка", "Укажите код судна.")
-            return False
-        if self.cmb_client.count() == 0:
-            QMessageBox.warning(self, "Ошибка", "Нет доступных клиентов.")
-            return False
-        if not self._selected_services:
-            QMessageBox.warning(self, "Ошибка", "Добавьте хотя бы одну услугу.")
-            return False
-        return True
-
-    def _on_save(self):
-        if not self._validate():
+    def _save(self):
+        code = self.editVesselCode.text().strip()
+        err = self._validate_vessel_code(code)
+        if err:
+            QMessageBox.warning(self, "Ошибка", err)
             return
 
-        payload = {
-            "vessel_code": self.edt_vessel.text().strip(),
-            "client_id": self.cmb_client.currentData(),
-            "employee_id": Session.get_user_id(),
-            "status": self.cmb_status.currentText(),
-            "services": self._selected_services,
-        }
+        if self.comboClient.count() == 0:
+            QMessageBox.warning(self, "Ошибка", "Выберите клиента или добавьте нового.")
+            return
+        client_id = self.comboClient.currentData()
+
+        selected = [cb.service_id for cb in self.service_checks if cb.isChecked()]
+        if not selected:
+            QMessageBox.warning(self, "Ошибка", "Выберите хотя бы одну услугу.")
+            return
+
+        total = sum(cb.price for cb in self.service_checks if cb.isChecked())
+        employee_id = Session.get_user_id()
 
         try:
-            if self.is_edit:
-                order_repo.update_order(self.order_id, payload)
+            if self.order_id is None:
+                # Создание нового заказа
+                order_repo.create_order(
+                    vessel_code=code,
+                    client_id=client_id,
+                    employee_id=employee_id,
+                    service_ids=selected,
+                    total_price=total,
+                )
+                QMessageBox.information(self, "Готово", "Заказ успешно создан.")
             else:
-                order_repo.create_order(payload)
+                # Обновление существующего заказа
+                order_repo.update_order(
+                    order_id=self.order_id,
+                    vessel_code=code,
+                    client_id=client_id,
+                    employee_id=employee_id,
+                    service_ids=selected,
+                    total_price=total,
+                )
+                QMessageBox.information(self, "Готово", "Заказ успешно обновлён.")
             self.accept()
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка сохранения", str(e))
+            QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить заказ:\n{e}")

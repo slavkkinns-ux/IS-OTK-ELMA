@@ -1,34 +1,31 @@
 """Фасад доступа к базе данных."""
-from repositories.base_repository import BaseRepository
-from repositories.client_repository import ClientRepository
-from repositories.order_repository import OrderRepository
-from repositories.report_repository import ReportRepository
-from db.connection import connection_manager, get_connection, close_connection
+from db import connection
+from db import client_repo
+from db import order_repo
+from db import services_repo
 
-# Создаём экземпляры репозиториев
-base_repo = BaseRepository()
-client_repo = ClientRepository()
-order_repo = OrderRepository()
-report_repo = ReportRepository()
+try:
+    from db import report_repo
+except ImportError:
+    report_repo = None
 
 
 def connect():
-    """Инициализировать соединение с БД."""
-    connection_manager.get_connection()
+    """Открывает соединение с БД."""
+    return connection.get_connection()
+
+
+def get_connection():
+    """Возвращает активное соединение."""
+    return connection.get_connection()
 
 
 def close():
-    """Закрыть соединение с БД."""
-    connection_manager.close()
+    """Закрывает соединение с БД."""
+    connection.close_connection()
 
 
 __all__ = [
-    'base_repo',
-    'client_repo',
-    'order_repo',
-    'report_repo',
-    'connect',
-    'close',
-    'get_connection',
-    'close_connection',
+    'connect', 'get_connection', 'close',
+    'client_repo', 'order_repo', 'services_repo', 'report_repo',
 ]
