@@ -15,7 +15,7 @@ from session import Session
 from dialogs import (
     OrderDialog, ViewOrderDialog,
     ClientDialog, ClientEditDialog, ClientViewDialog,
-    ReportPreviewDialog, ServicesDialog,
+    ReportPreviewDialog, ServicesDialog, ResearchResultDialog
 )
 from db import client_repo, order_repo, report_repo
 

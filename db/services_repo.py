@@ -101,3 +101,15 @@ def service_name_exists(service_name: str, exclude_id: int = None) -> bool:
             return cur.fetchone() is not None
     finally:
         conn.close()
+
+def is_service_used(service_id: int) -> bool:
+    """Проверить, используется ли услуга в заказах."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 1 FROM order_services WHERE service_id = %s LIMIT 1
+            """, (service_id,))
+            return cur.fetchone() is not None
+    finally:
+        conn.close()

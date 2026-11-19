@@ -134,12 +134,18 @@ class ServicesDialog(QDialog):
             return
         new_status = 0 if service['is_active'] else 1
         action = "отключить" if service['is_active'] else "включить"
-        reply = QMessageBox.question(
-            self, "Подтверждение",
-            f"Вы уверены, что хотите {action} услугу «{service['service_name']}»?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+
+        # Кастомный диалог с русским текстом
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Question)
+        msg.setWindowTitle("Подтверждение")
+        msg.setText(f"Вы уверены, что хотите {action} услугу «{service['service_name']}»?")
+        btn_yes = msg.addButton("Да", QMessageBox.ButtonRole.YesRole)
+        btn_no = msg.addButton("Нет", QMessageBox.ButtonRole.NoRole)
+        msg.setDefaultButton(btn_no)
+        msg.exec()
+
+        if msg.clickedButton() == btn_yes:
             services_repo.update_service(
                 service['service_id'], service['service_name'],
                 service['price'], new_status
@@ -147,23 +153,45 @@ class ServicesDialog(QDialog):
             self._load_services()
 
     def _delete_service(self):
-        """Удалить выбранную услугу (с проверкой использования)."""
         service = self._get_selected_service()
         if not service:
             QMessageBox.information(self, "Удаление", "Выберите услугу в таблице.")
             return
 
-        # Предупреждение об использовании
-        reply = QMessageBox.warning(
-            self, "Удаление услуги",
-            f"Услуга «{service['service_name']}» будет помечена как удалённая.\n"
-            f"Она перестанет отображаться в списке при создании заказов.\n\n"
-            f"Продолжить?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            services_repo.delete_service(service['service_id'], soft=True)
-            self._load_services()
+        # Проверка использования
+        if services_repo.is_service_used(service['service_id']):
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle("Удаление услуги")
+            msg.setText(
+                f"Услуга «{service['service_name']}» используется в существующих заказах.\n"
+                f"Удаление может нарушить целостность данных.\n\n"
+                f"Продолжить?"
+            )
+            btn_yes = msg.addButton("Да, удалить", QMessageBox.ButtonRole.YesRole)
+            btn_no = msg.addButton("Отмена", QMessageBox.ButtonRole.NoRole)
+            msg.setDefaultButton(btn_no)
+            msg.exec()
+            if msg.clickedButton() != btn_yes:
+                return
+
+        # Диалог подтверждения
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle("Удаление услуги")
+        msg.setText(f"Услуга «{service['service_name']}» будет удалена безвозвратно.\n\nПродолжить?")
+        btn_yes = msg.addButton("Да", QMessageBox.ButtonRole.YesRole)
+        btn_no = msg.addButton("Нет", QMessageBox.ButtonRole.NoRole)
+        msg.setDefaultButton(btn_no)
+        msg.exec()
+
+        if msg.clickedButton() == btn_yes:
+            try:
+                services_repo.delete_service(service['service_id'], soft=False)
+                self._load_services()
+                QMessageBox.information(self, "Готово", "Услуга удалена.")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось удалить услугу:\n{e}")
 
 
 class ServiceEditDialog(QDialog):

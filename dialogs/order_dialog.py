@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QCheckBox, QPushButton, QMessageBox, QGroupBox,
     QScrollArea, QWidget, QFormLayout
 )
+from PyQt6.QtCore import Qt
 from db import order_repo, client_repo, services_repo
 from session import Session
 
@@ -14,12 +15,13 @@ class OrderDialog(QDialog):
     def __init__(self, parent, order_id=None):
         super().__init__(parent)
         self.order_id = order_id
-        self.services = services_repo.get_all_services()
-        self.service_checks: list[QCheckBox] = []
+        self.all_services = services_repo.get_all_services()  # все услуги для поиска
+        self.service_checks: list[QCheckBox] = []  # видимые чекбоксы
         self.setWindowTitle(
             "Новый заказ" if order_id is None else "Редактирование заказа"
         )
         self.setMinimumWidth(560)
+        self.setMinimumHeight(600)
         self._setup_ui()
         self._reload_clients()
 
@@ -65,16 +67,47 @@ class OrderDialog(QDialog):
         client_lay.addRow(btn_row)
         root.addWidget(client_box)
 
-        # --- Услуги ---
+        # --- Услуги с поиском ---
         services_box = QGroupBox("Исследования / услуги")
         services_lay = QVBoxLayout(services_box)
+
+        # Поле поиска
+        search_lay = QHBoxLayout()
+        search_lay.addWidget(QLabel("🔍 Поиск:"))
+        self.editServiceSearch = QLineEdit()
+        self.editServiceSearch.setPlaceholderText("Введите название услуги...")
+        self.editServiceSearch.textChanged.connect(self._filter_services)
+        search_lay.addWidget(self.editServiceSearch)
+        services_lay.addLayout(search_lay)
+
+        # Счётчик отображаемых услуг
+        self.lblServiceCount = QLabel("0 из 0")
+        self.lblServiceCount.setStyleSheet("color: #666; font-size: 9pt;")
+        self.lblServiceCount.setAlignment(Qt.AlignmentFlag.AlignRight)
+        services_lay.addWidget(self.lblServiceCount)
+
+        # ScrollArea с фиксированной высотой
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setMinimumHeight(200)
+        scroll.setMaximumHeight(300)  # фиксируем максимальную высоту
+        scroll.setStyleSheet("""
+            QScrollArea {
+                border: 1px solid #CBD7E4;
+                border-radius: 4px;
+                background-color: #FAFBFC;
+            }
+        """)
+
         scroll_widget = QWidget()
         self.services_layout = QVBoxLayout(scroll_widget)
+        self.services_layout.setContentsMargins(8, 8, 8, 8)
+        self.services_layout.setSpacing(4)
+
         self._build_services_list()
         scroll.setWidget(scroll_widget)
         services_lay.addWidget(scroll)
+
         root.addWidget(services_box)
 
         # --- Итого ---
@@ -99,32 +132,61 @@ class OrderDialog(QDialog):
         root.addLayout(btns)
 
     def _build_services_list(self):
-        """Построить список чекбоксов услуг из self.services."""
-        # Удаляем старые чекбоксы (кроме stretch в конце)
-        while self.services_layout.count() > 1:
+        """Построить список чекбоксов услуг из self.all_services."""
+        # Удаляем старые чекбоксы
+        while self.services_layout.count() > 0:
             item = self.services_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         self.service_checks.clear()
 
-        if not self.services:
+        if not self.all_services:
             empty_label = QLabel("Нет доступных услуг. Добавьте их через «Услуги».")
-            empty_label.setStyleSheet("color: gray; font-style: italic;")
+            empty_label.setStyleSheet("color: gray; font-style: italic; padding: 10px;")
             self.services_layout.addWidget(empty_label)
+            self._update_service_count(0, 0)
             return
 
-        for s in self.services:
+        for s in self.all_services:
             cb = QCheckBox(f"{s['service_name']}  —  {float(s['price']):.2f} ₽")
             cb.service_id = s['service_id']
             cb.price = float(s['price'])
             cb.stateChanged.connect(self._recalc_total)
+            # Фиксируем минимальную высоту чекбокса, чтобы не сжимались
+            cb.setMinimumHeight(28)
             self.service_checks.append(cb)
             self.services_layout.addWidget(cb)
+
         self.services_layout.addStretch()
+        self._update_service_count(len(self.service_checks), len(self.all_services))
+
+    def _filter_services(self):
+        """Фильтрация услуг по введённому тексту."""
+        query = self.editServiceSearch.text().strip().lower()
+        visible_count = 0
+
+        for cb in self.service_checks:
+            if not query or query in cb.text().lower():
+                cb.setVisible(True)
+                visible_count += 1
+            else:
+                cb.setVisible(False)
+
+        self._update_service_count(visible_count, len(self.all_services))
+
+    def _update_service_count(self, visible: int, total: int):
+        """Обновить счётчик отображаемых услуг."""
+        if total == 0:
+            self.lblServiceCount.setText("Нет услуг")
+        elif visible == total:
+            self.lblServiceCount.setText(f"Всего: {total}")
+        else:
+            self.lblServiceCount.setText(f"Найдено: {visible} из {total}")
 
     def _reload_services(self):
-        """Перезагрузить список услуг из БД (если админ добавил новые)."""
-        self.services = services_repo.get_all_services()
+        """Перезагрузить список услуг из БД."""
+        self.all_services = services_repo.get_all_services()
+        self.editServiceSearch.clear()
         self._build_services_list()
 
     def _fill_suggested_code(self):
@@ -156,7 +218,7 @@ class OrderDialog(QDialog):
 
     def _recalc_total(self):
         """Пересчитать итоговую сумму."""
-        total = sum(cb.price for cb in self.service_checks if cb.isChecked())
+        total = sum(cb.price for cb in self.service_checks if cb.isChecked() and cb.isVisible())
         self.lblTotal.setText(f"{total:.2f} ₽")
 
     def _load_order(self):
@@ -168,18 +230,18 @@ class OrderDialog(QDialog):
         # Код сосуда
         self.editVesselCode.setText(order['vessel_code'])
 
-        # Тип клиента (устанавливаем ДО загрузки списка)
+        # Тип клиента
         client_type = order.get('client_type', 'ЮЛ')
         self.comboClientType.setCurrentText(client_type)
 
-        # Перезагружаем клиентов под выбранный тип и выбираем нужного
+        # Перезагружаем клиентов и выбираем нужного
         self._reload_clients()
         for i in range(self.comboClient.count()):
             if self.comboClient.itemData(i) == order['client_id']:
                 self.comboClient.setCurrentIndex(i)
                 break
 
-        # Загружаем услуги — отмечаем нужные чекбоксы
+        # Загружаем услуги
         services = order_repo.get_order_services(self.order_id)
         service_ids = [s['service_id'] for s in services]
         for cb in self.service_checks:
@@ -191,7 +253,6 @@ class OrderDialog(QDialog):
         """Проверка уникальности кода сосуда."""
         if not code.strip():
             return "Введите код сосуда."
-        # При редактировании исключаем текущий заказ из проверки
         if order_repo.vessel_code_exists(
             code.strip(),
             exclude_archived=True,
@@ -204,7 +265,7 @@ class OrderDialog(QDialog):
         return None
 
     def _save(self):
-        """Сохранить заказ (создать или обновить)."""
+        """Сохранить заказ."""
         code = self.editVesselCode.text().strip()
         err = self._validate_vessel_code(code)
         if err:
@@ -218,17 +279,23 @@ class OrderDialog(QDialog):
             return
         client_id = self.comboClient.currentData()
 
-        selected = [cb.service_id for cb in self.service_checks if cb.isChecked()]
+        # Берём только видимые и отмеченные услуги
+        selected = [
+            cb.service_id
+            for cb in self.service_checks
+            if cb.isChecked() and cb.isVisible()
+        ]
         if not selected:
             QMessageBox.warning(self, "Ошибка", "Выберите хотя бы одну услугу.")
             return
 
-        total = sum(cb.price for cb in self.service_checks if cb.isChecked())
+        total = sum(
+            cb.price for cb in self.service_checks if cb.isChecked() and cb.isVisible()
+        )
         employee_id = Session.get_user_id()
 
         try:
             if self.order_id is None:
-                # Создание нового заказа
                 order_repo.create_order(
                     vessel_code=code,
                     client_id=client_id,
@@ -238,7 +305,6 @@ class OrderDialog(QDialog):
                 )
                 QMessageBox.information(self, "Готово", "Заказ успешно создан.")
             else:
-                # Обновление существующего заказа
                 order_repo.update_order(
                     order_id=self.order_id,
                     vessel_code=code,
