@@ -15,7 +15,7 @@ from session import Session
 from dialogs import (
     OrderDialog, ViewOrderDialog,
     ClientDialog, ClientEditDialog, ClientViewDialog,
-    ReportPreviewDialog, ResearchResultDialog,
+    ReportPreviewDialog, ServicesDialog,
 )
 from db import client_repo, order_repo, report_repo
 
@@ -315,6 +315,38 @@ class MainWindow(QMainWindow):
 
         self._load_orders_stats()
         self._load_orders_table()
+
+        self._add_services_button()
+
+    def _add_services_button(self):
+        """Добавить кнопку управления услугами в панель заказов."""
+        # Ищем панель кнопок действий на странице заказов
+        parent = self.ui.btnAddOrder.parent()
+        parent_layout = parent.layout()
+        if not parent_layout:
+            return
+        
+        btn = QPushButton("⚙ Услуги")
+        btn.setStyleSheet("""
+            QPushButton {
+                background-color: #244B73;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #174A7E;
+            }
+        """)
+        btn.clicked.connect(self._open_services_dialog)
+        parent_layout.addWidget(btn)
+
+    def _open_services_dialog(self):
+        """Открыть диалог управления услугами."""
+        dlg = ServicesDialog(self)
+        dlg.exec()
 
     def _load_orders_stats(self):
         stats = order_repo.get_orders_stats()
