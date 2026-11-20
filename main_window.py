@@ -249,6 +249,8 @@ class MainWindow(QMainWindow):
     # =========================================================================
 
     def _setup_home_tab(self):
+        self.ui.lblCurrentOrders.setStyleSheet(
+        "color: #17365D; padding: 8px 0; font-size: 16pt; font-weight: bold;")
         self.ui.btnAllOrders.clicked.connect(self._go_to_orders)
         self._load_home_stats()
         self._load_recent_orders()

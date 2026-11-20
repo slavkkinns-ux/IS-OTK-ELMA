@@ -1,22 +1,22 @@
 """Базовые функции для работы с базой данных.
 Используется в модулях авторизации и других местах, где нужны низкоуровневые запросы.
 """
-from db.connection import get_connection
+from db.connection import get_connection as _db_get_connection
 
 
 def connect():
     """Открывает соединение с базой данных."""
-    return get_connection()
+    return _db_get_connection()
 
 
 def get_connection():
     """Возвращает активное соединение."""
-    return get_connection()
+    return _db_get_connection()
 
 
 def execute_query(query: str, params=None) -> list[dict]:
     """Выполняет SQL-запрос (SELECT) и возвращает список словарей."""
-    conn = get_connection()
+    conn = _db_get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(query, params or ())
@@ -27,7 +27,7 @@ def execute_query(query: str, params=None) -> list[dict]:
 
 def execute_insert(query: str, params=None) -> int:
     """Выполняет INSERT и возвращает ID новой строки."""
-    conn = get_connection()
+    conn = _db_get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(query, params or ())
@@ -42,6 +42,5 @@ def execute_insert(query: str, params=None) -> int:
 
 def close():
     """Закрывает соединение с базой данных."""
-    conn = get_connection()
-    if conn:
-        conn.close()
+    from db.connection import close_connection
+    close_connection()

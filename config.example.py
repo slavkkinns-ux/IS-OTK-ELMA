@@ -3,6 +3,5 @@ DB_CONFIG = {
     'user': 'your_user',
     'password': 'your_password',
     'database': 'elma',
-    'charset': 'utf8mb4',
-    'collation': 'utf8mb4_general_ci'
+    'charset': 'utf8mb4'
 }
