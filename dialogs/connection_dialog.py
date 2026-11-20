@@ -1,34 +1,40 @@
 """Диалог подключения к БД."""
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QProgressBar, QGroupBox
+    QProgressBar
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from db.connection import is_db_available, connect
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QObject
+
+from db.connection import check_db, connect, get_config_info, ensure_schema
 
 
 class _Worker(QObject):
     """Фоновая проверка доступности БД."""
-    finished = pyqtSignal(bool)
+    finished = pyqtSignal(bool, object)
 
     def check(self):
-        result = is_db_available()
-        self.finished.emit(result)
+        ok, err = check_db()
+        self.finished.emit(ok, err)
 
 
 class ConnectionDialog(QDialog):
-    """Диалог подключения к БД с автоповтором."""
+    """Диалог подключения к БД с автоповтором.
+    При успехе закрывается молча. Сообщения — только при ошибках.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Подключение к базе данных")
-        self.setFixedSize(420, 220)
+        self.setFixedSize(420, 200)
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint
         )
-        # Сначала инициализируем атрибуты, потом строим UI
+
         self._attempt = 0
         self._max_attempts = 5
+        self._thread = None
+        self._worker = None
+
         self._build_ui()
         self._start_check()
 
@@ -50,21 +56,25 @@ class ConnectionDialog(QDialog):
         self.progress.setValue(0)
         root.addWidget(self.progress)
 
-        # Кнопки
+        # Кнопки (по умолчанию скрыты — появляются только при ошибке)
         btns = QHBoxLayout()
-        self.btnRetry = QPushButton("🔄 Повторить")
+        self.btnRetry = QPushButton("Повторить")
         self.btnRetry.clicked.connect(self._on_retry)
-        self.btnSettings = QPushButton("⚙ Настройки")
+        self.btnSettings = QPushButton("Настройки")
         self.btnSettings.clicked.connect(self._on_settings)
-        self.btnExit = QPushButton("✕ Выйти")
+        self.btnExit = QPushButton("Выйти")
         self.btnExit.clicked.connect(self.reject)
+
         btns.addWidget(self.btnRetry)
         btns.addWidget(self.btnSettings)
+        btns.addStretch()
         btns.addWidget(self.btnExit)
         root.addLayout(btns)
 
-        self.btnRetry.setEnabled(False)
-        self.btnSettings.setEnabled(False)
+        # Скрываем кнопки до появления ошибки
+        self.btnRetry.setVisible(False)
+        self.btnSettings.setVisible(False)
+        self.btnExit.setVisible(False)
 
     def _start_check(self):
         """Запустить проверку в фоне."""
@@ -74,10 +84,8 @@ class ConnectionDialog(QDialog):
             f"Проверка доступности сервера MySQL."
         )
         self.progress.setValue(self._attempt - 1)
-        self.btnRetry.setEnabled(False)
-        self.btnSettings.setEnabled(False)
+        self._hide_error_buttons()
 
-        from PyQt6.QtCore import QThread
         self._thread = QThread(self)
         self._worker = _Worker()
         self._worker.moveToThread(self._thread)
@@ -89,34 +97,57 @@ class ConnectionDialog(QDialog):
     def _on_check_finished(self, available: bool):
         """Обработка результата проверки."""
         if available:
-            # Пытаемся подключиться
+            # Пытаемся подключиться и проверить структуру
             try:
                 connect()
-                self.lblStatus.setText("✅ Подключение установлено!")
+                # Тихая проверка/создание таблиц — без сообщений пользователю
+                schema_info = ensure_schema()
+                if schema_info.startswith("Созданы таблицы:"):
+                    from PyQt6.QtWidgets import QMessageBox
+                    QMessageBox.information(
+                        self, "Первый запуск",
+                        f"Создана структура базы данных:\n{schema_info}\n\n"
+                        f"Теперь добавьте сотрудников и услуги через интерфейс приложения."
+                    )
+                # Короткая пауза, чтобы пользователь увидел "Подключение установлено"
+                self.lblStatus.setText("Подключение установлено.")
                 self.progress.setValue(self._max_attempts)
-                self.accept()  # закрываем диалог с успехом
+                QTimer.singleShot(400, self.accept)
             except Exception as e:
-                self.lblStatus.setText(
-                    f"❌ Ошибка подключения:\n{e}\n\n"
+                # Ошибка при подключении или создании таблиц — показываем
+                self._show_error(
+                    f"Ошибка подключения:\n{e}\n\n"
                     f"Проверьте параметры в config.py"
                 )
-                self.progress.setValue(self._max_attempts)
-                self.btnRetry.setEnabled(True)
-                self.btnSettings.setEnabled(True)
         else:
             if self._attempt < self._max_attempts:
-                # Автоповтор через 2 секунды
+                # Автоповтор через 2 секунды — без сообщений
                 QTimer.singleShot(2000, self._start_check)
             else:
-                self.lblStatus.setText(
-                    "❌ Сервер MySQL недоступен.\n\n"
+                # Все попытки исчерпаны — показываем ошибку
+                self._show_error(
+                    "Сервер MySQL недоступен.\n\n"
                     "Убедитесь, что:\n"
                     "• MySQL запущен\n"
                     "• Параметры в config.py верны\n"
                     "• Сеть доступна"
                 )
-                self.btnRetry.setEnabled(True)
-                self.btnSettings.setEnabled(True)
+
+    def _show_error(self, message: str):
+        """Показать ошибку и активировать кнопки действий."""
+        self.progress.setValue(self._max_attempts)
+        self.lblStatus.setText(message)
+        self.lblStatus.setStyleSheet("color: #B03A2E;")
+        self.btnRetry.setVisible(True)
+        self.btnSettings.setVisible(True)
+        self.btnExit.setVisible(True)
+
+    def _hide_error_buttons(self):
+        """Скрыть кнопки действий (при новой попытке)."""
+        self.lblStatus.setStyleSheet("")
+        self.btnRetry.setVisible(False)
+        self.btnSettings.setVisible(False)
+        self.btnExit.setVisible(False)
 
     def _on_retry(self):
         """Повторить подключение."""
@@ -124,13 +155,20 @@ class ConnectionDialog(QDialog):
         self._start_check()
 
     def _on_settings(self):
-        """Открыть config.py в редакторе (опционально)."""
+        """Открыть config.py в редакторе."""
         import subprocess
         import sys
         import os
-        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.py')
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.py')
         if os.path.exists(config_path):
             if sys.platform == 'win32':
                 os.startfile(config_path)
             else:
                 subprocess.Popen(['xdg-open', config_path])
+
+    def closeEvent(self, event):
+        if self._thread and self._thread.isRunning():
+            self._thread.quit()
+            self._thread.wait(2000)
+        event.accept()

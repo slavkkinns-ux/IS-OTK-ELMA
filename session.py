@@ -1,7 +1,9 @@
+"""Управление сессией пользователя."""
 import os
 import json
 
 SESSION_FILE = "session.json"
+
 
 class Role:
     MANAGER = "manager"
@@ -9,6 +11,7 @@ class Role:
     CONTROLLER = "controller"
     ADMIN = "admin"
     CLIENT = "client"
+
 
 ROLE_DISPLAY_NAMES = {
     Role.MANAGER: "Менеджер по работе с клиентами",
@@ -19,30 +22,66 @@ ROLE_DISPLAY_NAMES = {
 }
 
 ROLE_PERMISSIONS = {
-    Role.MANAGER: {"can_create_order": True, "can_view_orders": False, "can_create_reports": False, "can_view_reports": False, "can_do_research": False},
-    Role.LAB_TECHNICIAN: {"can_create_order": True, "can_view_orders": True, "can_create_reports": True, "can_view_reports": True, "can_do_research": True},
-    Role.CONTROLLER: {"can_create_order": True, "can_view_orders": True, "can_create_reports": True, "can_view_reports": True, "can_do_research": True},
-    Role.ADMIN: {"can_create_order": True, "can_view_orders": True, "can_create_reports": True, "can_view_reports": True, "can_do_research": True},
-    Role.CLIENT: {"can_create_order": False, "can_view_orders": True, "can_create_reports": False, "can_view_reports": True, "can_do_research": False},
+    Role.MANAGER: {
+        "can_create_order": True, "can_view_orders": False,
+        "can_create_reports": False, "can_view_reports": False,
+        "can_do_research": False,
+    },
+    Role.LAB_TECHNICIAN: {
+        "can_create_order": True, "can_view_orders": True,
+        "can_create_reports": True, "can_view_reports": True,
+        "can_do_research": True,
+    },
+    Role.CONTROLLER: {
+        "can_create_order": True, "can_view_orders": True,
+        "can_create_reports": True, "can_view_reports": True,
+        "can_do_research": True,
+    },
+    Role.ADMIN: {
+        "can_create_order": True, "can_view_orders": True,
+        "can_create_reports": True, "can_view_reports": True,
+        "can_do_research": True,
+    },
+    Role.CLIENT: {
+        "can_create_order": False, "can_view_orders": True,
+        "can_create_reports": False, "can_view_reports": True,
+        "can_do_research": False,
+    },
 }
+
 
 class Session:
     _current_user = None
 
     @classmethod
     def init(cls):
+        """Загрузить сессию из файла при запуске приложения."""
         cls._load_from_file()
 
     @classmethod
-    def set_user(cls, login, role, display_name=None, user_id=None, user_type='employee'):
+    def set_user(cls, login, role, display_name=None, user_id=None,
+                 user_type='employee', remember=True):
+        """Установить текущего пользователя.
+
+        remember=True  — сохранить в файл (галочка "Запомнить меня" включена)
+        remember=False — НЕ сохранять в файл (галочка выключена)
+        """
         cls._current_user = {
             "login": login,
             "role": role,
             "display_name": display_name or login.capitalize(),
             "user_id": user_id,
-            "user_type": user_type
+            "user_type": user_type,
         }
-        cls._save_to_file()
+        if remember:
+            cls._save_to_file()
+        else:
+            # Если файл был от прошлого входа — удаляем его
+            if os.path.exists(SESSION_FILE):
+                try:
+                    os.remove(SESSION_FILE)
+                except OSError:
+                    pass
 
     @classmethod
     def get_user(cls):
@@ -62,7 +101,10 @@ class Session:
 
     @classmethod
     def get_display_name(cls):
-        return cls._current_user.get("display_name", cls._current_user.get("login", "")) if cls._current_user else ""
+        if not cls._current_user:
+            return ""
+        return cls._current_user.get("display_name",
+                                     cls._current_user.get("login", ""))
 
     @classmethod
     def get_role_display_name(cls):
@@ -71,14 +113,19 @@ class Session:
     @classmethod
     def has_permission(cls, permission: str) -> bool:
         role = cls.get_role()
-        if not role: return False
+        if not role:
+            return False
         return ROLE_PERMISSIONS.get(role, {}).get(permission, False)
 
     @classmethod
     def clear(cls):
+        """Выйти из системы — очистить память и удалить файл сессии."""
         cls._current_user = None
         if os.path.exists(SESSION_FILE):
-            os.remove(SESSION_FILE)
+            try:
+                os.remove(SESSION_FILE)
+            except OSError:
+                pass
 
     @classmethod
     def is_authenticated(cls):

@@ -1,8 +1,6 @@
 from PyQt6.QtWidgets import QDialog
 from PyQt6.QtCore import Qt
 from ui.choose_login_ui import Ui_ChooseLoginDialog
-from login_employee import EmployeeLoginWindow
-from login_client import ClientLoginWindow
 
 
 class ChooseLoginDialog(QDialog):

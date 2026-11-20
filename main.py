@@ -10,6 +10,7 @@ from client_login import ClientLoginDialog
 from dialogs.connection_dialog import ConnectionDialog  # <-- диалог подключения к БД
 from session import Session
 from datetime import datetime, date
+from logger import app_logger
 
 THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
 
@@ -38,6 +39,9 @@ def format_date(value) -> str:
 
 
 def run_app():
+    app_logger.info("=" * 60)
+    app_logger.info("Приложение ИС ОТК запускается")
+    app_logger.info("=" * 60)
     os.environ["QT_QPA_PLATFORMTHEME"] = ""
 
     app = QApplication(sys.argv)

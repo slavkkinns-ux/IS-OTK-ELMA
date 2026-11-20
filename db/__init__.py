@@ -25,12 +25,17 @@ def is_db_available():
     return connection.is_db_available()
 
 
+def ensure_schema():
+    """Проверить и создать недостающие таблицы."""
+    return connection.ensure_schema()
+
+
 def close():
     """Закрывает соединение с БД."""
     connection.close_connection()
 
 
 __all__ = [
-    'connect', 'get_connection', 'is_db_available', 'close',
+    'connect', 'get_connection', 'is_db_available', 'ensure_schema', 'close',
     'client_repo', 'order_repo', 'services_repo', 'report_repo',
 ]

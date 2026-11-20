@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem,
     QMessageBox, QDialog, QDateEdit, QLabel, QPushButton,
-    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget, QVBoxLayout
+    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget, QVBoxLayout, QTextEdit
 )
 
 from ui.main_window_ui import Ui_MainWindow
@@ -19,6 +19,101 @@ from dialogs import (
 )
 from db import client_repo, order_repo, report_repo
 
+class LogWidget(QWidget):
+    """Виджет для просмотра логов приложения (только для администратора)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Логи приложения")
+        self.setMinimumSize(700, 500)
+
+        layout = QVBoxLayout(self)
+
+        # Заголовок
+        title = QLabel("Логи приложения")
+        title.setStyleSheet("font-size: 14pt; font-weight: bold; color: #174A7E; padding: 5px;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+
+        # Текстовое поле с логами
+        self.text_edit = QTextEdit()
+        self.text_edit.setReadOnly(True)
+        self.text_edit.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, 'Courier New', monospace;
+                font-size: 10pt;
+                border: 1px solid #CBD7E4;
+                border-radius: 4px;
+                padding: 5px;
+            }
+        """)
+        layout.addWidget(self.text_edit)
+
+        # Кнопки
+        btns = QHBoxLayout()
+        btn_clear = QPushButton("Очистить")
+        btn_clear.clicked.connect(self.text_edit.clear)
+        btn_save = QPushButton("Сохранить в файл")
+        btn_save.clicked.connect(self._save_logs)
+        btn_close = QPushButton("Закрыть")
+        btn_close.clicked.connect(self.close)
+
+        btns.addWidget(btn_clear)
+        btns.addWidget(btn_save)
+        btns.addStretch()
+        btns.addWidget(btn_close)
+        layout.addLayout(btns)
+
+        # Загружаем последний лог-файл
+        self._load_latest_log()
+
+    def _load_latest_log(self):
+        """Загрузить содержимое последнего лог-файла."""
+        import os
+        from datetime import datetime
+
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+        if not os.path.exists(log_dir):
+            self.text_edit.setPlainText("Папка logs не найдена.")
+            return
+
+        # Находим последний файл
+        log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
+        if not log_files:
+            self.text_edit.setPlainText("Лог-файлы не найдены.")
+            return
+
+        log_files.sort(reverse=True)
+        latest_log = os.path.join(log_dir, log_files[0])
+
+        try:
+            with open(latest_log, 'r', encoding='utf-8') as f:
+                content = f.read()
+            self.text_edit.setPlainText(content)
+            # Прокручиваем в конец
+            scrollbar = self.text_edit.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+        except Exception as e:
+            self.text_edit.setPlainText(f"Ошибка чтения лога:\n{e}")
+
+    def _save_logs(self):
+        """Сохранить логи в файл."""
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from datetime import datetime
+
+        default_name = f"logs_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Сохранить логи", default_name, "Text Files (*.txt);;All Files (*)"
+        )
+        if path:
+            try:
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(self.text_edit.toPlainText())
+                QMessageBox.information(self, "Готово", f"Логи сохранены в:\n{path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить:\n{e}")
 
 # =============================================================================
 # Утилиты
@@ -82,6 +177,7 @@ class MainWindow(QMainWindow):
             self.close()
             return
 
+        self._log_window = None
         self._apply_role_permissions()
         self._setup_sidebar()
         self._setup_tables()
@@ -131,6 +227,59 @@ class MainWindow(QMainWindow):
         self.ui.btnHome.setChecked(True)
         self.nav_group.buttonClicked.connect(self._on_nav_clicked)
         self.ui.btnExit.clicked.connect(self.logout)
+
+        # Кнопка логов — только для администратора
+        if self._is_admin():
+            self._add_logs_button()
+
+
+    def _is_admin(self) -> bool:
+        """Проверяет, является ли текущий пользователь администратором."""
+        role = Session.get_role_display_name()
+        # Проверяем по названию роли или по набору прав
+        return role in ('Администратор', 'admin', 'Administrator')
+
+
+    def _add_logs_button(self):
+        """Добавить кнопку просмотра логов в нижнюю часть sidebar."""
+        btn_logs = QPushButton("📋 Логи")
+        btn_logs.setStyleSheet("""
+            QPushButton {
+                background-color: #2C3E50;
+                color: white;
+                border: none;
+                padding: 10px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: #34495E;
+            }
+        """)
+        btn_logs.clicked.connect(self._show_logs)
+
+        # Ищем layout sidebar и добавляем кнопку перед кнопкой выхода
+        sidebar_layout = self.ui.sidebarFrame.layout()
+        if sidebar_layout:
+            # Находим индекс кнопки выхода
+            for i in range(sidebar_layout.count()):
+                item = sidebar_layout.itemAt(i)
+                if item and item.widget() == self.ui.btnExit:
+                    sidebar_layout.insertWidget(i, btn_logs)
+                    return
+        # Если не нашли — добавляем в конец
+        sidebar_layout.addWidget(btn_logs)
+
+
+    def _show_logs(self):
+        """Показать окно с логами приложения."""
+        # Создаём окно (или показываем существующее)
+        if not hasattr(self, '_log_window') or self._log_window is None:
+            self._log_window = LogWidget(self)
+        self._log_window.show()
+        self._log_window.raise_()
+        self._log_window.activateWindow()
 
     def _apply_role_permissions(self):
         """Применение прав доступа в зависимости от роли пользователя."""

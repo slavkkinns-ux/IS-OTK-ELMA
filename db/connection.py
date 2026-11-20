@@ -8,14 +8,11 @@ _last_error = None
 
 
 def _load_config(force_reload: bool = False):
-    """Загружает параметры подключения из config.py.
-    Поддерживает формат: DB_CONFIG = {'host': ..., 'user': ..., ...}
-    """
+    """Загружает параметры подключения из config.py."""
     global _config
     if _config is not None and not force_reload:
         return _config
 
-    # Значения по умолчанию
     cfg = {
         'host': 'localhost',
         'port': 3306,
@@ -33,13 +30,12 @@ def _load_config(force_reload: bool = False):
         _config = cfg
         return _config
 
-    # === Формат 1: словарь DB_CONFIG ===
+    # Формат 1: словарь DB_CONFIG
     if hasattr(config, 'DB_CONFIG') and isinstance(config.DB_CONFIG, dict):
         for key in ('host', 'port', 'user', 'password', 'database', 'charset'):
             if key in config.DB_CONFIG:
                 cfg[key] = config.DB_CONFIG[key]
-
-    # === Формат 2: отдельные константы (DB_HOST, DB_USER ...) ===
+    # Формат 2: отдельные константы
     else:
         aliases = {
             'host': ('DB_HOST', 'MYSQL_HOST', 'HOST'),
@@ -61,7 +57,6 @@ def _load_config(force_reload: bool = False):
 
 
 def get_config_info() -> str:
-    """Строка с текущими параметрами (без пароля) — для диагностики."""
     c = _load_config()
     return f"{c['user']}@{c['host']}:{c['port']} / {c['database']}"
 
@@ -71,7 +66,6 @@ def get_last_error() -> str | None:
 
 
 def get_connection():
-    """Возвращает активное соединение, при обрыве — пересоздаёт."""
     global _connection, _last_error
     try:
         if _connection is None or not _connection.open:
@@ -86,7 +80,6 @@ def get_connection():
 
 
 def check_db() -> tuple:
-    """Проверяет доступность БД. Возвращает (успех, текст ошибки)."""
     global _last_error
     try:
         conn = pymysql.connect(**_load_config(force_reload=True))
@@ -114,6 +107,50 @@ def connect_with_retry(max_attempts: int = 3, delay: float = 1.0) -> bool:
     return False
 
 
+def ensure_schema() -> str:
+    """Проверяет наличие всех нужных таблиц и создаёт недостающие."""
+    from db.schema import SCHEMA_SQL, REQUIRED_TABLES
+
+    conn = get_connection()
+    created = []
+    already_exists = []
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SHOW TABLES")
+            existing = {list(row.values())[0] for row in cur.fetchall()}
+
+            missing = [t for t in REQUIRED_TABLES if t not in existing]
+            if not missing:
+                return "Все таблицы уже существуют."
+
+            for statement in SCHEMA_SQL.split(';'):
+                stmt = statement.strip()
+                if stmt and not stmt.startswith('--'):
+                    cur.execute(stmt)
+            conn.commit()
+
+            cur.execute("SHOW TABLES")
+            after = {list(row.values())[0] for row in cur.fetchall()}
+
+            for t in REQUIRED_TABLES:
+                if t in after and t not in existing:
+                    created.append(t)
+                elif t in existing:
+                    already_exists.append(t)
+
+    except Exception as e:
+        conn.rollback()
+        raise
+
+    parts = []
+    if created:
+        parts.append(f"Созданы таблицы: {', '.join(created)}")
+    if already_exists:
+        parts.append(f"Уже существовали: {', '.join(already_exists)}")
+    return '; '.join(parts) if parts else "Ничего не изменилось."
+
+
 def close_connection():
     global _connection
     try:
@@ -124,7 +161,6 @@ def close_connection():
     _connection = None
 
 
-# Для обратной совместимости
 def connect():
     return get_connection()
 
