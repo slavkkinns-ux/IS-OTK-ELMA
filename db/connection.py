@@ -1,70 +1,133 @@
-"""Модуль управления соединением с БД (синглтон)."""
+"""Подключение к MySQL с обработкой ошибок и автоповтором."""
 import pymysql
-from pymysql import Error
-import logging
+import time
 
-logger = logging.getLogger(__name__)
-
-
-class ConnectionManager:
-    """Синглтон, хранит одно активное соединение."""
-    _instance = None
-    _connection = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def get_connection(self):
-        """Возвращает активное соединение, открывая его при необходимости."""
-        if self._connection is None or not self._connection.open:
-            try:
-                from config import DB_CONFIG
-                self._connection = pymysql.connect(
-                    **DB_CONFIG,
-                    cursorclass=pymysql.cursors.DictCursor,
-                    autocommit=False,
-                    connect_timeout=5,
-                )
-                logger.info("Соединение с БД установлено")
-            except Error as e:
-                logger.error(f"Ошибка подключения к БД: {e}")
-                self._connection = None
-                raise
-        return self._connection
-
-    def close(self):
-        """Закрывает соединение."""
-        if self._connection and self._connection.open:
-            self._connection.close()
-            self._connection = None
-            logger.info("Соединение с БД закрыто")
-
-    def is_connected(self):
-        """Проверяет, активно ли соединение."""
-        return self._connection is not None and self._connection.open
+_connection = None
+_config = None
+_last_error = None
 
 
-connection_manager = ConnectionManager()
+def _load_config(force_reload: bool = False):
+    """Загружает параметры подключения из config.py.
+    Поддерживает формат: DB_CONFIG = {'host': ..., 'user': ..., ...}
+    """
+    global _config
+    if _config is not None and not force_reload:
+        return _config
+
+    # Значения по умолчанию
+    cfg = {
+        'host': 'localhost',
+        'port': 3306,
+        'user': 'root',
+        'password': '',
+        'database': 'is_otk',
+        'charset': 'utf8mb4',
+        'cursorclass': pymysql.cursors.DictCursor,
+        'connect_timeout': 5,
+    }
+
+    try:
+        import config
+    except ImportError:
+        _config = cfg
+        return _config
+
+    # === Формат 1: словарь DB_CONFIG ===
+    if hasattr(config, 'DB_CONFIG') and isinstance(config.DB_CONFIG, dict):
+        for key in ('host', 'port', 'user', 'password', 'database', 'charset'):
+            if key in config.DB_CONFIG:
+                cfg[key] = config.DB_CONFIG[key]
+
+    # === Формат 2: отдельные константы (DB_HOST, DB_USER ...) ===
+    else:
+        aliases = {
+            'host': ('DB_HOST', 'MYSQL_HOST', 'HOST'),
+            'port': ('DB_PORT', 'MYSQL_PORT', 'PORT'),
+            'user': ('DB_USER', 'MYSQL_USER', 'USER', 'USERNAME'),
+            'password': ('DB_PASSWORD', 'MYSQL_PASSWORD', 'PASSWORD', 'PASSWD'),
+            'database': ('DB_NAME', 'MYSQL_DATABASE', 'MYSQL_DB', 'DATABASE', 'DB'),
+            'charset': ('DB_CHARSET', 'CHARSET'),
+        }
+        for key, names in aliases.items():
+            for n in names:
+                if hasattr(config, n):
+                    cfg[key] = getattr(config, n)
+                    break
+
+    cfg['port'] = int(cfg['port'])
+    _config = cfg
+    return _config
+
+
+def get_config_info() -> str:
+    """Строка с текущими параметрами (без пароля) — для диагностики."""
+    c = _load_config()
+    return f"{c['user']}@{c['host']}:{c['port']} / {c['database']}"
+
+
+def get_last_error() -> str | None:
+    return _last_error
 
 
 def get_connection():
-    """Публичная функция — используется во всех репозиториях."""
-    return connection_manager.get_connection()
+    """Возвращает активное соединение, при обрыве — пересоздаёт."""
+    global _connection, _last_error
+    try:
+        if _connection is None or not _connection.open:
+            _connection = pymysql.connect(**_load_config())
+        else:
+            _connection.ping(reconnect=True)
+        _last_error = None
+        return _connection
+    except Exception as e:
+        _last_error = str(e)
+        raise
+
+
+def check_db() -> tuple:
+    """Проверяет доступность БД. Возвращает (успех, текст ошибки)."""
+    global _last_error
+    try:
+        conn = pymysql.connect(**_load_config(force_reload=True))
+        conn.close()
+        _last_error = None
+        return True, None
+    except Exception as e:
+        _last_error = str(e)
+        return False, str(e)
+
+
+def is_db_available() -> bool:
+    ok, _ = check_db()
+    return ok
+
+
+def connect_with_retry(max_attempts: int = 3, delay: float = 1.0) -> bool:
+    for attempt in range(1, max_attempts + 1):
+        try:
+            get_connection()
+            return True
+        except Exception:
+            if attempt < max_attempts:
+                time.sleep(delay)
+    return False
 
 
 def close_connection():
-    """Публичная функция — вызывается при закрытии приложения."""
-    connection_manager.close()
-
-
-def is_db_available():
-    """Проверяет доступность БД без создания постоянного соединения."""
+    global _connection
     try:
-        from config import DB_CONFIG
-        conn = pymysql.connect(**DB_CONFIG, connect_timeout=3)
-        conn.close()
-        return True
+        if _connection and _connection.open:
+            _connection.close()
     except Exception:
-        return False
+        pass
+    _connection = None
+
+
+# Для обратной совместимости
+def connect():
+    return get_connection()
+
+
+def close():
+    close_connection()

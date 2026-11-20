@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem,
     QMessageBox, QDialog, QDateEdit, QLabel, QPushButton,
-    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget,
+    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget, QVBoxLayout
 )
 
 from ui.main_window_ui import Ui_MainWindow
@@ -60,12 +60,18 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.app = app
 
-        from db import connect
+        # Подключение уже выполнено в main.py через ConnectionDialog
+        # Просто убеждаемся, что соединение активно
         try:
-            connect()
+            from db import get_connection
+            get_connection()
         except Exception as e:
-            QMessageBox.critical(None, "Ошибка", f"Не удалось подключиться к БД:\n{e}")
-            sys.exit(1)
+            QMessageBox.critical(
+                self, "Ошибка",
+                f"Потеряно соединение с БД:\n{e}\n\nПерезапустите приложение."
+            )
+            self.close()
+            return
 
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -79,7 +85,6 @@ class MainWindow(QMainWindow):
         self._apply_role_permissions()
         self._setup_sidebar()
         self._setup_tables()
-
         self._setup_home_tab()
         self._setup_orders_tab()
         self._setup_clients_tab()
