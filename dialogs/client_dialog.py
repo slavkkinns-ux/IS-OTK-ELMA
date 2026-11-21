@@ -6,6 +6,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QDate
 from db import client_repo
+import hashlib
+import random
+import string
 
 
 # ==================== ДОБАВЛЕНИЕ ====================
@@ -20,6 +23,7 @@ class ClientDialog(QDialog):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
+
         type_lay = QHBoxLayout()
         type_lay.addWidget(QLabel("Тип клиента:"))
         self.comboType = QComboBox()
@@ -31,6 +35,7 @@ class ClientDialog(QDialog):
 
         self.stacked = QStackedWidget()
 
+        # ЮЛ
         ul_widget = QWidget()
         ul_form = QFormLayout(ul_widget)
         self.ul_fields = {}
@@ -45,6 +50,7 @@ class ClientDialog(QDialog):
             ul_form.addRow(label, le)
         self.stacked.addWidget(ul_widget)
 
+        # ФЛ
         fl_widget = QWidget()
         fl_form = QFormLayout(fl_widget)
         self.fl_fields = {}
@@ -67,6 +73,26 @@ class ClientDialog(QDialog):
 
         root.addWidget(self.stacked)
 
+        # Поля логина и пароля (общие для обоих типов)
+        auth_group = QGroupBox("Данные для входа клиента")
+        auth_form = QFormLayout(auth_group)
+
+        self.editLogin = QLineEdit()
+        self.editLogin.setPlaceholderText("Email или телефон для входа")
+        auth_form.addRow("Логин:", self.editLogin)
+
+        self.editPassword = QLineEdit()
+        self.editPassword.setEchoMode(QLineEdit.EchoMode.Password)
+        self.editPassword.setPlaceholderText("Пароль для входа")
+        auth_form.addRow("Пароль:", self.editPassword)
+
+        btn_generate = QPushButton("🎲 Сгенерировать пароль")
+        btn_generate.clicked.connect(self._generate_password)
+        auth_form.addRow("", btn_generate)
+
+        root.addWidget(auth_group)
+
+        # Кнопки
         btns = QHBoxLayout()
         btn_save = QPushButton("Сохранить")
         btn_save.clicked.connect(self._save)
@@ -81,6 +107,13 @@ class ClientDialog(QDialog):
             self.stacked.setCurrentIndex(0)
         else:
             self.stacked.setCurrentIndex(1)
+
+    def _generate_password(self):
+        """Сгенерировать случайный пароль из 8 символов."""
+        chars = string.ascii_letters + string.digits
+        password = ''.join(random.choices(chars, k=8))
+        self.editPassword.setText(password)
+        self.editPassword.setEchoMode(QLineEdit.EchoMode.Normal)
 
     def _collect(self) -> dict:
         ctype = self.comboType.currentText()
@@ -101,8 +134,34 @@ class ClientDialog(QDialog):
         if not data.get("name"):
             QMessageBox.warning(self, "Ошибка", "Укажите название / ФИО.")
             return
+
+        login = self.editLogin.text().strip()
+        password = self.editPassword.text().strip()
+
+        if not login:
+            QMessageBox.warning(self, "Ошибка", "Введите логин для входа клиента.")
+            return
+        if not password:
+            QMessageBox.warning(self, "Ошибка", "Введите пароль для входа клиента.")
+            return
+
+        # Проверка уникальности логина
+        if client_repo.client_login_exists(login):
+            QMessageBox.warning(self, "Ошибка", f"Логин «{login}» уже используется.")
+            return
+
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+
         try:
-            client_repo.add_client(data)
+            client_repo.create_client(
+                client_type=data["client_type"],
+                name=data["name"],
+                phone=data.get("phone", ""),
+                email=data.get("email", ""),
+                login=login,
+                password_hash=password_hash,
+                **{k: v for k, v in data.items() if k not in ("client_type", "name", "phone", "email")}
+            )
             QMessageBox.information(self, "Готово", "Клиент добавлен.")
             self.accept()
         except Exception as e:
@@ -122,6 +181,7 @@ class ClientEditDialog(QDialog):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
+
         type_lay = QHBoxLayout()
         type_lay.addWidget(QLabel("Тип клиента:"))
         self.lblType = QLabel(self.client_data.get('client_type', '') if self.client_data else '')
@@ -164,6 +224,25 @@ class ClientEditDialog(QDialog):
 
         root.addWidget(self.stacked)
 
+        # Поля логина и пароля
+        auth_group = QGroupBox("Данные для входа клиента")
+        auth_form = QFormLayout(auth_group)
+
+        self.editLogin = QLineEdit()
+        self.editLogin.setPlaceholderText("Email или телефон для входа")
+        auth_form.addRow("Логин:", self.editLogin)
+
+        self.editPassword = QLineEdit()
+        self.editPassword.setEchoMode(QLineEdit.EchoMode.Password)
+        self.editPassword.setPlaceholderText("Оставьте пустым, чтобы не менять пароль")
+        auth_form.addRow("Новый пароль:", self.editPassword)
+
+        btn_generate = QPushButton("🎲 Сгенерировать пароль")
+        btn_generate.clicked.connect(self._generate_password)
+        auth_form.addRow("", btn_generate)
+
+        root.addWidget(auth_group)
+
         btns = QHBoxLayout()
         btn_save = QPushButton("Сохранить")
         btn_save.clicked.connect(self._save)
@@ -172,6 +251,12 @@ class ClientEditDialog(QDialog):
         btns.addWidget(btn_save)
         btns.addWidget(btn_cancel)
         root.addLayout(btns)
+
+    def _generate_password(self):
+        chars = string.ascii_letters + string.digits
+        password = ''.join(random.choices(chars, k=8))
+        self.editPassword.setText(password)
+        self.editPassword.setEchoMode(QLineEdit.EchoMode.Normal)
 
     def _load_data(self):
         if not self.client_data:
@@ -188,6 +273,9 @@ class ClientEditDialog(QDialog):
                     w.setText(str(self.client_data.get(k, '') or ''))
                 elif isinstance(w, QDateEdit) and self.client_data.get('birth_date'):
                     w.setDate(self.client_data['birth_date'])
+
+        # Загружаем логин (если есть)
+        self.editLogin.setText(str(self.client_data.get('login', '') or ''))
 
     def _collect(self) -> dict:
         ctype = self.client_data['client_type']
@@ -208,8 +296,34 @@ class ClientEditDialog(QDialog):
         if not data.get("name"):
             QMessageBox.warning(self, "Ошибка", "Укажите название / ФИО.")
             return
+
+        login = self.editLogin.text().strip()
+        password = self.editPassword.text().strip()
+
+        if not login:
+            QMessageBox.warning(self, "Ошибка", "Введите логин для входа клиента.")
+            return
+
+        # Проверка уникальности логина (исключая текущего клиента)
+        if client_repo.client_login_exists(login, exclude_id=self.client_id):
+            QMessageBox.warning(self, "Ошибка", f"Логин «{login}» уже используется.")
+            return
+
+        password_hash = None
+        if password:
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+
         try:
-            client_repo.update_client(data)
+            client_repo.update_client(
+                client_id=self.client_id,
+                client_type=data["client_type"],
+                name=data["name"],
+                phone=data.get("phone", ""),
+                email=data.get("email", ""),
+                login=login,
+                password_hash=password_hash,
+                **{k: v for k, v in data.items() if k not in ("client_id", "client_type", "name", "phone", "email")}
+            )
             QMessageBox.information(self, "Готово", "Клиент обновлён.")
             self.accept()
         except Exception as e:
@@ -231,7 +345,6 @@ class ClientViewDialog(QDialog):
         info_box = QGroupBox("Информация о клиенте")
         self.form_lay = QFormLayout(info_box)
         root.addWidget(info_box)
-
         btns = QHBoxLayout()
         btn_close = QPushButton("Закрыть")
         btn_close.clicked.connect(self.accept)
@@ -247,7 +360,7 @@ class ClientViewDialog(QDialog):
         self.form_lay.addRow("Название / ФИО:", QLabel(d.get('name', '')))
         self.form_lay.addRow("Телефон:", QLabel(d.get('phone', '')))
         self.form_lay.addRow("E-mail:", QLabel(d.get('email', '')))
-
+        self.form_lay.addRow("Логин:", QLabel(d.get('login', '—')))
         if d['client_type'] == 'ЮЛ':
             self.form_lay.addRow("Адрес:", QLabel(d.get('address', '')))
             self.form_lay.addRow("ИНН:", QLabel(d.get('inn', '')))

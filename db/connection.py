@@ -1,6 +1,7 @@
 """Подключение к MySQL с обработкой ошибок и автоповтором."""
 import pymysql
 import time
+import hashlib
 
 _connection = None
 _config = None
@@ -18,7 +19,7 @@ def _load_config(force_reload: bool = False):
         'port': 3306,
         'user': 'root',
         'password': '',
-        'database': 'is_otk',
+        'database': 'elma',
         'charset': 'utf8mb4',
         'cursorclass': pymysql.cursors.DictCursor,
         'connect_timeout': 5,
@@ -65,7 +66,39 @@ def get_last_error() -> str | None:
     return _last_error
 
 
+def ensure_database() -> str:
+    """Проверяет наличие БД и создаёт её, если нет."""
+    cfg = _load_config()
+    db_name = cfg['database']
+
+    try:
+        conn = pymysql.connect(
+            host=cfg['host'],
+            port=cfg['port'],
+            user=cfg['user'],
+            password=cfg['password'],
+            charset='utf8mb4',
+            connect_timeout=5,
+        )
+        with conn.cursor() as cur:
+            cur.execute(f"SHOW DATABASES LIKE '{db_name}'")
+            exists = cur.fetchone() is not None
+            if not exists:
+                cur.execute(
+                    f"CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                )
+                conn.commit()
+                conn.close()
+                return f"База данных '{db_name}' создана."
+            else:
+                conn.close()
+                return f"База данных '{db_name}' уже существует."
+    except Exception as e:
+        raise RuntimeError(f"Не удалось создать базу данных '{db_name}': {e}")
+
+
 def get_connection():
+    """Возвращает активное соединение, при обрыве — пересоздаёт."""
     global _connection, _last_error
     try:
         if _connection is None or not _connection.open:
@@ -80,6 +113,7 @@ def get_connection():
 
 
 def check_db() -> tuple:
+    """Проверяет доступность БД. Возвращает (успех, текст ошибки)."""
     global _last_error
     try:
         conn = pymysql.connect(**_load_config(force_reload=True))
@@ -108,9 +142,16 @@ def connect_with_retry(max_attempts: int = 3, delay: float = 1.0) -> bool:
 
 
 def ensure_schema() -> str:
-    """Проверяет наличие всех нужных таблиц и создаёт недостающие."""
+    """Проверяет наличие всех нужных таблиц и создаёт недостающие + админа."""
     from db.schema import SCHEMA_SQL, REQUIRED_TABLES
 
+    # Правильный SHA-256 хэш пароля "12345"
+    ADMIN_PASSWORD_HASH = hashlib.sha256('12345'.encode()).hexdigest()
+
+    # Шаг 1: Проверяем/создаём базу данных
+    db_info = ensure_database()
+
+    # Шаг 2: Подключаемся к конкретной БД
     conn = get_connection()
     created = []
     already_exists = []
@@ -122,8 +163,25 @@ def ensure_schema() -> str:
 
             missing = [t for t in REQUIRED_TABLES if t not in existing]
             if not missing:
-                return "Все таблицы уже существуют."
+                # Таблицы есть — проверяем/обновляем админа
+                cur.execute("SELECT password_hash FROM employees WHERE login = 'admin' LIMIT 1")
+                row = cur.fetchone()
+                if row is None:
+                    cur.execute(
+                        "INSERT INTO employees (full_name, login, password_hash, role, is_active) "
+                        "VALUES ('Администратор системы', 'admin', %s, 'Администратор', 1)",
+                        (ADMIN_PASSWORD_HASH,)
+                    )
+                    conn.commit()
+                elif row['password_hash'] != ADMIN_PASSWORD_HASH:
+                    cur.execute(
+                        "UPDATE employees SET password_hash = %s WHERE login = 'admin'",
+                        (ADMIN_PASSWORD_HASH,)
+                    )
+                    conn.commit()
+                return f"{db_info}\nВсе таблицы уже существуют. Администратор проверен."
 
+            # Создаём таблицы
             for statement in SCHEMA_SQL.split(';'):
                 stmt = statement.strip()
                 if stmt and not stmt.startswith('--'):
@@ -139,16 +197,27 @@ def ensure_schema() -> str:
                 elif t in existing:
                     already_exists.append(t)
 
+            # Создаём админа
+            cur.execute("SELECT 1 FROM employees WHERE login = 'admin' LIMIT 1")
+            if cur.fetchone() is None:
+                cur.execute(
+                    "INSERT INTO employees (full_name, login, password_hash, role, is_active) "
+                    "VALUES ('Администратор системы', 'admin', %s, 'Администратор', 1)",
+                    (ADMIN_PASSWORD_HASH,)
+                )
+                conn.commit()
+
     except Exception as e:
         conn.rollback()
         raise
 
-    parts = []
+    parts = [db_info]
     if created:
         parts.append(f"Созданы таблицы: {', '.join(created)}")
     if already_exists:
         parts.append(f"Уже существовали: {', '.join(already_exists)}")
-    return '; '.join(parts) if parts else "Ничего не изменилось."
+    parts.append("Администратор: login=admin, password=12345")
+    return '\n'.join(parts)
 
 
 def close_connection():

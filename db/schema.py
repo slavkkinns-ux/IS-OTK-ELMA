@@ -1,28 +1,27 @@
-"""SQL-схема БД. Таблицы создаются только если их ещё нет."""
+"""SQL-схема БД для ИС ОТК."""
 
 SCHEMA_SQL = """
--- Сотрудники
 CREATE TABLE IF NOT EXISTS employees (
     employee_id INT AUTO_INCREMENT PRIMARY KEY,
     full_name   VARCHAR(200) NOT NULL,
     login       VARCHAR(100) UNIQUE,
-    password    VARCHAR(255),
+    password_hash VARCHAR(255),
     role        VARCHAR(50) NOT NULL DEFAULT 'ОТК-специалист',
     is_active   TINYINT(1) NOT NULL DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Клиенты (общая таблица)
 CREATE TABLE IF NOT EXISTS clients (
-    client_id   INT AUTO_INCREMENT PRIMARY KEY,
-    client_type ENUM('ЮЛ','ФЛ') NOT NULL,
-    phone       VARCHAR(50),
-    email       VARCHAR(150),
-    is_active   TINYINT(1) NOT NULL DEFAULT 1,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    client_id     INT AUTO_INCREMENT PRIMARY KEY,
+    client_type   ENUM('ЮЛ','ФЛ') NOT NULL,
+    login         VARCHAR(100) UNIQUE,
+    password_hash VARCHAR(255),
+    phone         VARCHAR(50),
+    email         VARCHAR(150),
+    is_active     TINYINT(1) NOT NULL DEFAULT 1,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Юридические лица
 CREATE TABLE IF NOT EXISTS legal_entities (
     client_id       INT PRIMARY KEY,
     company_name    VARCHAR(300) NOT NULL,
@@ -36,7 +35,6 @@ CREATE TABLE IF NOT EXISTS legal_entities (
     FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Физические лица
 CREATE TABLE IF NOT EXISTS individuals (
     client_id        INT PRIMARY KEY,
     full_name        VARCHAR(300) NOT NULL,
@@ -46,7 +44,6 @@ CREATE TABLE IF NOT EXISTS individuals (
     FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Услуги / исследования
 CREATE TABLE IF NOT EXISTS services (
     service_id   INT AUTO_INCREMENT PRIMARY KEY,
     service_name VARCHAR(300) NOT NULL UNIQUE,
@@ -54,7 +51,6 @@ CREATE TABLE IF NOT EXISTS services (
     is_active    TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Заказы
 CREATE TABLE IF NOT EXISTS orders (
     order_id    INT AUTO_INCREMENT PRIMARY KEY,
     vessel_code VARCHAR(50) NOT NULL,
@@ -69,7 +65,6 @@ CREATE TABLE IF NOT EXISTS orders (
     FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Услуги в заказе (связь многие-ко-многим)
 CREATE TABLE IF NOT EXISTS order_services (
     order_service_id INT AUTO_INCREMENT PRIMARY KEY,
     order_id         INT NOT NULL,
@@ -79,7 +74,6 @@ CREATE TABLE IF NOT EXISTS order_services (
     FOREIGN KEY (service_id) REFERENCES services(service_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Результаты исследований
 CREATE TABLE IF NOT EXISTS research_results (
     research_id      INT AUTO_INCREMENT PRIMARY KEY,
     order_service_id INT NOT NULL UNIQUE,
@@ -92,7 +86,6 @@ CREATE TABLE IF NOT EXISTS research_results (
     FOREIGN KEY (employee_id)      REFERENCES employees(employee_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Отчёты
 CREATE TABLE IF NOT EXISTS reports (
     report_id   INT AUTO_INCREMENT PRIMARY KEY,
     order_id    INT NOT NULL,
@@ -104,7 +97,6 @@ CREATE TABLE IF NOT EXISTS reports (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
-# Список всех таблиц, которые должны быть в БД
 REQUIRED_TABLES = [
     'employees',
     'clients',

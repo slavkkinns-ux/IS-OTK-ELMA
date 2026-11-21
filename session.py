@@ -13,6 +13,22 @@ class Role:
     CLIENT = "client"
 
 
+# Маппинг: русские названия ролей из БД → внутренние коды
+ROLE_NAME_MAP = {
+    'Администратор': Role.ADMIN,
+    'Менеджер': Role.MANAGER,
+    'Менеджер по работе с клиентами': Role.MANAGER,
+    'Лаборант': Role.LAB_TECHNICIAN,
+    'Контролёр': Role.CONTROLLER,
+    'Контроллер': Role.CONTROLLER,
+    'Клиент': Role.CLIENT,
+    'admin': Role.ADMIN,
+    'manager': Role.MANAGER,
+    'lab_technician': Role.LAB_TECHNICIAN,
+    'controller': Role.CONTROLLER,
+    'client': Role.CLIENT,
+}
+
 ROLE_DISPLAY_NAMES = {
     Role.MANAGER: "Менеджер по работе с клиентами",
     Role.LAB_TECHNICIAN: "Лаборант",
@@ -23,7 +39,7 @@ ROLE_DISPLAY_NAMES = {
 
 ROLE_PERMISSIONS = {
     Role.MANAGER: {
-        "can_create_order": True, "can_view_orders": False,
+        "can_create_order": True, "can_view_orders": True,
         "can_create_reports": False, "can_view_reports": False,
         "can_do_research": False,
     },
@@ -55,20 +71,17 @@ class Session:
 
     @classmethod
     def init(cls):
-        """Загрузить сессию из файла при запуске приложения."""
         cls._load_from_file()
 
     @classmethod
     def set_user(cls, login, role, display_name=None, user_id=None,
                  user_type='employee', remember=True):
-        """Установить текущего пользователя.
+        # Нормализуем роль: если пришло русское название — переводим в код
+        normalized_role = ROLE_NAME_MAP.get(role, role)
 
-        remember=True  — сохранить в файл (галочка "Запомнить меня" включена)
-        remember=False — НЕ сохранять в файл (галочка выключена)
-        """
         cls._current_user = {
             "login": login,
-            "role": role,
+            "role": normalized_role,
             "display_name": display_name or login.capitalize(),
             "user_id": user_id,
             "user_type": user_type,
@@ -76,7 +89,6 @@ class Session:
         if remember:
             cls._save_to_file()
         else:
-            # Если файл был от прошлого входа — удаляем его
             if os.path.exists(SESSION_FILE):
                 try:
                     os.remove(SESSION_FILE)
@@ -103,8 +115,7 @@ class Session:
     def get_display_name(cls):
         if not cls._current_user:
             return ""
-        return cls._current_user.get("display_name",
-                                     cls._current_user.get("login", ""))
+        return cls._current_user.get("display_name", cls._current_user.get("login", ""))
 
     @classmethod
     def get_role_display_name(cls):
@@ -119,7 +130,6 @@ class Session:
 
     @classmethod
     def clear(cls):
-        """Выйти из системы — очистить память и удалить файл сессии."""
         cls._current_user = None
         if os.path.exists(SESSION_FILE):
             try:
@@ -144,6 +154,10 @@ class Session:
         if os.path.exists(SESSION_FILE):
             try:
                 with open(SESSION_FILE, 'r', encoding='utf-8') as f:
-                    cls._current_user = json.load(f)
+                    data = json.load(f)
+                # Нормализуем роль при загрузке из файла
+                if 'role' in data:
+                    data['role'] = ROLE_NAME_MAP.get(data['role'], data['role'])
+                cls._current_user = data
             except Exception:
                 cls._current_user = None

@@ -14,8 +14,7 @@ from ui.main_window_ui import Ui_MainWindow
 from session import Session
 from dialogs import (
     OrderDialog, ViewOrderDialog,
-    ClientDialog, ClientEditDialog, ClientViewDialog,
-    ReportPreviewDialog, ServicesDialog, ResearchResultDialog
+    ClientDialog, ClientEditDialog, ClientViewDialog, ServicesDialog, ResearchResultDialog
 )
 from db import client_repo, order_repo, report_repo
 

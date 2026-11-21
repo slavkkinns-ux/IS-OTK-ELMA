@@ -1,5 +1,7 @@
 from PyQt6.QtWidgets import QMainWindow, QHeaderView, QMessageBox, QTableWidgetItem
 from PyQt6.QtCore import Qt
+
+from db.client_repo import get_client_by_id
 from ui.client_window_ui import Ui_ClientsWindow
 from session import Session
 from db import client_repo
