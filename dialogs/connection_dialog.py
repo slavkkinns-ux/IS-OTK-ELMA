@@ -101,42 +101,34 @@ class ConnectionDialog(QDialog):
         if available:
             try:
                 connect()
-                self.lblStatus.setText("Подключение установлено.\nПроверка структуры БД...")
+                self.lblStatus.setText("Подключение установлено.\nПроверка и миграция БД...")
                 self.progress.setValue(self._max_attempts)
 
-                # ВАЖНО: создаём таблицы и админа, если их нет
                 try:
-                    from db.connection import ensure_schema
-                    ensure_schema()
+                    schema_info = ensure_schema()
+                    # Логируем результат миграции (для отладки)
+                    print(f"[DB Migration] {schema_info}")
                 except Exception as e:
-                    self.lblStatus.setText(f"Ошибка при создании таблиц:\n{e}")
+                    self.lblStatus.setText(f"Ошибка при миграции БД:\n{e}")
                     self.btnRetry.setEnabled(True)
                     self.btnSettings.setEnabled(True)
                     return
 
-                self.lblStatus.setText("✅ Подключение установлено!")
+                # Тихое завершение
                 QTimer.singleShot(400, self.accept)
             except Exception as e:
-                self.lblStatus.setText(
-                    f"❌ Ошибка подключения:\n{e}\n\n"
-                    f"Проверьте параметры в config.py"
-                )
-                self.progress.setValue(self._max_attempts)
-                self.btnRetry.setEnabled(True)
-                self.btnSettings.setEnabled(True)
+                self._show_error(f"Ошибка подключения:\n{e}\n\nПроверьте параметры в config.py")
         else:
             if self._attempt < self._max_attempts:
                 QTimer.singleShot(2000, self._start_check)
             else:
-                self.lblStatus.setText(
-                    "❌ Сервер MySQL недоступен.\n\n"
+                self._show_error(
+                    "Сервер MySQL недоступен.\n\n"
                     "Убедитесь, что:\n"
                     "• MySQL запущен\n"
                     "• Параметры в config.py верны\n"
                     "• Сеть доступна"
                 )
-                self.btnRetry.setEnabled(True)
-                self.btnSettings.setEnabled(True)
 
     def _show_error(self, message: str):
         self.progress.setValue(self._max_attempts)

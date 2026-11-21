@@ -1,4 +1,4 @@
-"""Подключение к MySQL с обработкой ошибок и автоповтором."""
+"""Подключение к MySQL с полной проверкой и миграцией БД."""
 import pymysql
 import time
 import hashlib
@@ -31,12 +31,10 @@ def _load_config(force_reload: bool = False):
         _config = cfg
         return _config
 
-    # Формат 1: словарь DB_CONFIG
     if hasattr(config, 'DB_CONFIG') and isinstance(config.DB_CONFIG, dict):
         for key in ('host', 'port', 'user', 'password', 'database', 'charset'):
             if key in config.DB_CONFIG:
                 cfg[key] = config.DB_CONFIG[key]
-    # Формат 2: отдельные константы
     else:
         aliases = {
             'host': ('DB_HOST', 'MYSQL_HOST', 'HOST'),
@@ -70,15 +68,10 @@ def ensure_database() -> str:
     """Проверяет наличие БД и создаёт её, если нет."""
     cfg = _load_config()
     db_name = cfg['database']
-
     try:
         conn = pymysql.connect(
-            host=cfg['host'],
-            port=cfg['port'],
-            user=cfg['user'],
-            password=cfg['password'],
-            charset='utf8mb4',
-            connect_timeout=5,
+            host=cfg['host'], port=cfg['port'], user=cfg['user'],
+            password=cfg['password'], charset='utf8mb4', connect_timeout=5,
         )
         with conn.cursor() as cur:
             cur.execute(f"SHOW DATABASES LIKE '{db_name}'")
@@ -113,7 +106,7 @@ def get_connection():
 
 
 def check_db() -> tuple:
-    """Проверяет доступность БД. Возвращает (успех, текст ошибки)."""
+    """Проверяет доступность БД."""
     global _last_error
     try:
         conn = pymysql.connect(**_load_config(force_reload=True))
@@ -141,20 +134,78 @@ def connect_with_retry(max_attempts: int = 3, delay: float = 1.0) -> bool:
     return False
 
 
+def _get_existing_columns(conn, table: str) -> set:
+    """Получить множество существующих колонок таблицы."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SHOW COLUMNS FROM `{table}`")
+            return {row['Field'] for row in cur.fetchall()}
+    except Exception:
+        return set()
+
+
+def ensure_columns() -> list[str]:
+    """Проверяет все таблицы и добавляет недостающие колонки.
+    Возвращает список выполненных ALTER TABLE."""
+    from db.schema import TABLE_COLUMNS
+
+    conn = get_connection()
+    actions = []
+
+    try:
+        with conn.cursor() as cur:
+            # Проверяем, какие таблицы есть
+            cur.execute("SHOW TABLES")
+            existing_tables = {list(row.values())[0] for row in cur.fetchall()}
+
+            for table, columns in TABLE_COLUMNS.items():
+                if table not in existing_tables:
+                    continue  # Таблицы нет — её создаст ensure_schema()
+
+                existing_cols = _get_existing_columns(conn, table)
+                for col_name, col_def in columns.items():
+                    if col_name not in existing_cols:
+                        # Добавляем колонку
+                        # Для PRIMARY KEY колонок — только если таблица пустая
+                        if 'PRIMARY KEY' in col_def:
+                            cur.execute(f"SELECT COUNT(*) AS cnt FROM `{table}`")
+                            if cur.fetchone()['cnt'] > 0:
+                                actions.append(f"⚠ Таблица {table} не пуста, колонка {col_name} (PK) не добавлена")
+                                continue
+
+                        sql = f"ALTER TABLE `{table}` ADD COLUMN `{col_name}` {col_def}"
+                        try:
+                            cur.execute(sql)
+                            actions.append(f"+ {table}.{col_name}")
+                        except Exception as e:
+                            actions.append(f"✗ {table}.{col_name}: {e}")
+
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise
+
+    return actions
+
+
 def ensure_schema() -> str:
-    """Проверяет наличие всех нужных таблиц и создаёт недостающие + админа."""
+    """Полная проверка и миграция БД:
+    1. Создаёт БД, если нет
+    2. Создаёт таблицы, если нет
+    3. Добавляет недостающие колонки
+    4. Создаёт администратора, если нет
+    """
     from db.schema import SCHEMA_SQL, REQUIRED_TABLES
 
-    # Правильный SHA-256 хэш пароля "12345"
     ADMIN_PASSWORD_HASH = hashlib.sha256('12345'.encode()).hexdigest()
 
-    # Шаг 1: Проверяем/создаём базу данных
+    # Шаг 1: БД
     db_info = ensure_database()
 
-    # Шаг 2: Подключаемся к конкретной БД
+    # Шаг 2: Таблицы
     conn = get_connection()
-    created = []
-    already_exists = []
+    created_tables = []
+    existing_tables = []
 
     try:
         with conn.cursor() as cur:
@@ -162,61 +213,65 @@ def ensure_schema() -> str:
             existing = {list(row.values())[0] for row in cur.fetchall()}
 
             missing = [t for t in REQUIRED_TABLES if t not in existing]
-            if not missing:
-                # Таблицы есть — проверяем/обновляем админа
-                cur.execute("SELECT password_hash FROM employees WHERE login = 'admin' LIMIT 1")
-                row = cur.fetchone()
-                if row is None:
-                    cur.execute(
-                        "INSERT INTO employees (full_name, login, password_hash, role, is_active) "
-                        "VALUES ('Администратор системы', 'admin', %s, 'Администратор', 1)",
-                        (ADMIN_PASSWORD_HASH,)
-                    )
-                    conn.commit()
-                elif row['password_hash'] != ADMIN_PASSWORD_HASH:
-                    cur.execute(
-                        "UPDATE employees SET password_hash = %s WHERE login = 'admin'",
-                        (ADMIN_PASSWORD_HASH,)
-                    )
-                    conn.commit()
-                return f"{db_info}\nВсе таблицы уже существуют. Администратор проверен."
+            if missing:
+                for statement in SCHEMA_SQL.split(';'):
+                    stmt = statement.strip()
+                    if stmt and not stmt.startswith('--'):
+                        try:
+                            cur.execute(stmt)
+                        except Exception:
+                            pass  # Ошибки игнорируем — таблицы могут уже быть
+                conn.commit()
 
-            # Создаём таблицы
-            for statement in SCHEMA_SQL.split(';'):
-                stmt = statement.strip()
-                if stmt and not stmt.startswith('--'):
-                    cur.execute(stmt)
-            conn.commit()
+                cur.execute("SHOW TABLES")
+                after = {list(row.values())[0] for row in cur.fetchall()}
+                for t in REQUIRED_TABLES:
+                    if t in after and t not in existing:
+                        created_tables.append(t)
+                    elif t in existing:
+                        existing_tables.append(t)
+            else:
+                existing_tables = list(existing & set(REQUIRED_TABLES))
 
-            cur.execute("SHOW TABLES")
-            after = {list(row.values())[0] for row in cur.fetchall()}
+            # Шаг 3: Колонки (миграция)
+            column_actions = ensure_columns()
 
-            for t in REQUIRED_TABLES:
-                if t in after and t not in existing:
-                    created.append(t)
-                elif t in existing:
-                    already_exists.append(t)
-
-            # Создаём админа
-            cur.execute("SELECT 1 FROM employees WHERE login = 'admin' LIMIT 1")
-            if cur.fetchone() is None:
+            # Шаг 4: Администратор
+            cur.execute("SELECT password_hash FROM employees WHERE login = 'admin' LIMIT 1")
+            row = cur.fetchone()
+            admin_status = ""
+            if row is None:
                 cur.execute(
                     "INSERT INTO employees (full_name, login, password_hash, role, is_active) "
                     "VALUES ('Администратор системы', 'admin', %s, 'Администратор', 1)",
                     (ADMIN_PASSWORD_HASH,)
                 )
                 conn.commit()
+                admin_status = "\n✓ Администратор создан (login=admin, password=12345)"
+            elif row['password_hash'] != ADMIN_PASSWORD_HASH:
+                cur.execute(
+                    "UPDATE employees SET password_hash = %s WHERE login = 'admin'",
+                    (ADMIN_PASSWORD_HASH,)
+                )
+                conn.commit()
+                admin_status = "\n✓ Пароль администратора обновлён"
 
     except Exception as e:
         conn.rollback()
         raise
 
+    # Формируем отчёт
     parts = [db_info]
-    if created:
-        parts.append(f"Созданы таблицы: {', '.join(created)}")
-    if already_exists:
-        parts.append(f"Уже существовали: {', '.join(already_exists)}")
-    parts.append("Администратор: login=admin, password=12345")
+    if created_tables:
+        parts.append(f"Созданы таблицы: {', '.join(created_tables)}")
+    if column_actions:
+        parts.append("Миграция колонок:")
+        parts.extend(f"  {a}" for a in column_actions)
+    if admin_status:
+        parts.append(admin_status)
+    if not created_tables and not column_actions and not admin_status:
+        parts.append("Всё актуально. Приложение готово к работе.")
+
     return '\n'.join(parts)
 
 

@@ -75,13 +75,15 @@ class Session:
 
     @classmethod
     def set_user(cls, login, role, display_name=None, user_id=None,
-                 user_type='employee', remember=True):
-        # Нормализуем роль: если пришло русское название — переводим в код
-        normalized_role = ROLE_NAME_MAP.get(role, role)
+                user_type='employee', remember=True):
+        """Установить текущего пользователя.
 
+        remember=True  — сохранить в файл (галочка "Запомнить меня" включена)
+        remember=False — НЕ сохранять в файл (галочка выключена)
+        """
         cls._current_user = {
             "login": login,
-            "role": normalized_role,
+            "role": role,
             "display_name": display_name or login.capitalize(),
             "user_id": user_id,
             "user_type": user_type,
@@ -89,6 +91,7 @@ class Session:
         if remember:
             cls._save_to_file()
         else:
+            # Если файл был от прошлого входа — удаляем его
             if os.path.exists(SESSION_FILE):
                 try:
                     os.remove(SESSION_FILE)

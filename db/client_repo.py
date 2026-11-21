@@ -10,7 +10,7 @@ def get_all_clients() -> list[dict]:
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT c.client_id, c.client_type, c.phone, c.email, c.login,
+                SELECT c.client_id, c.client_type, c.phone, c.email,
                        CASE WHEN c.client_type = 'ЮЛ' THEN le.company_name
                             ELSE i.full_name END AS name,
                        CASE WHEN c.client_type = 'ЮЛ' THEN le.director_name
@@ -23,29 +23,6 @@ def get_all_clients() -> list[dict]:
                 WHERE c.is_active = 1
                 ORDER BY c.client_id DESC
             """)
-            return cur.fetchall()
-    finally:
-        conn.close()
-
-
-def get_clients_by_type(client_type: str) -> list[dict]:
-    """Получить клиентов по типу (ЮЛ или ФЛ)."""
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT c.client_id,
-                       CASE WHEN c.client_type = 'ЮЛ' THEN le.company_name
-                            ELSE i.full_name END AS name,
-                       CASE WHEN c.client_type = 'ЮЛ' THEN le.director_name
-                            ELSE i.full_name END AS contact_person,
-                       c.phone, c.email
-                FROM clients c
-                LEFT JOIN legal_entities le ON le.client_id = c.client_id AND c.client_type = 'ЮЛ'
-                LEFT JOIN individuals i ON i.client_id = c.client_id AND c.client_type = 'ФЛ'
-                WHERE c.client_type = %s AND c.is_active = 1
-                ORDER BY name
-            """, (client_type,))
             return cur.fetchall()
     finally:
         conn.close()
@@ -107,37 +84,41 @@ def get_client_details(client_id: int) -> dict | None:
 # ==================== АВТОРИЗАЦИЯ КЛИЕНТА ====================
 
 def get_client_by_login(login: str, password_hash: str) -> dict | None:
-    """Найти клиента по логину и паролю (для авторизации)."""
+    """Найти клиента по email или телефону и паролю (для авторизации)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT c.client_id, c.client_type, c.login, c.phone, c.email,
+                SELECT c.client_id, c.client_type, c.phone, c.email,
                        CASE WHEN c.client_type = 'ЮЛ' THEN le.company_name
                             ELSE i.full_name END AS full_name
                 FROM clients c
                 LEFT JOIN legal_entities le ON le.client_id = c.client_id AND c.client_type = 'ЮЛ'
                 LEFT JOIN individuals i ON i.client_id = c.client_id AND c.client_type = 'ФЛ'
-                WHERE c.login = %s AND c.password_hash = %s AND c.is_active = 1
-            """, (login, password_hash))
+                WHERE (c.email = %s OR c.phone = %s) AND c.password_hash = %s AND c.is_active = 1
+            """, (login, login, password_hash))
             return cur.fetchone()
     finally:
         conn.close()
 
 
 def client_login_exists(login: str, exclude_id: int = None) -> bool:
-    """Проверить, существует ли клиент с таким логином."""
+    """Проверить, существует ли клиент с таким email или телефоном."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             if exclude_id:
                 cur.execute("""
-                    SELECT 1 FROM clients WHERE login = %s AND client_id <> %s LIMIT 1
-                """, (login, exclude_id))
+                    SELECT 1 FROM clients 
+                    WHERE (email = %s OR phone = %s) AND client_id <> %s 
+                    LIMIT 1
+                """, (login, login, exclude_id))
             else:
                 cur.execute("""
-                    SELECT 1 FROM clients WHERE login = %s LIMIT 1
-                """, (login,))
+                    SELECT 1 FROM clients 
+                    WHERE email = %s OR phone = %s 
+                    LIMIT 1
+                """, (login, login))
             return cur.fetchone() is not None
     finally:
         conn.close()
@@ -186,25 +167,21 @@ def get_clients_stats() -> dict:
 
 
 def get_client_stats(client_id: int) -> dict:
-    """Статистика для конкретного клиента (его заказы, отчёты)."""
+    """Статистика для конкретного клиента."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT COUNT(*) AS total_orders FROM orders WHERE client_id = %s
-            """, (client_id,))
+            cur.execute("SELECT COUNT(*) AS total_orders FROM orders WHERE client_id = %s", (client_id,))
             total_orders = cur.fetchone()['total_orders']
 
             cur.execute("""
-                SELECT COUNT(*) AS active_orders 
-                FROM orders 
+                SELECT COUNT(*) AS active_orders FROM orders 
                 WHERE client_id = %s AND status NOT IN ('Завершён', 'В архиве')
             """, (client_id,))
             active_orders = cur.fetchone()['active_orders']
 
             cur.execute("""
-                SELECT COUNT(*) AS completed_orders 
-                FROM orders 
+                SELECT COUNT(*) AS completed_orders FROM orders 
                 WHERE client_id = %s AND status = 'Завершён'
             """, (client_id,))
             completed_orders = cur.fetchone()['completed_orders']
@@ -231,20 +208,16 @@ def get_clients_orders_count() -> dict:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT client_id, COUNT(*) AS cnt
-                FROM orders
-                GROUP BY client_id
-            """)
+            cur.execute("SELECT client_id, COUNT(*) AS cnt FROM orders GROUP BY client_id")
             return {row['client_id']: row['cnt'] for row in cur.fetchall()}
     finally:
         conn.close()
 
 
-# ==================== ЗАКАЗЫ КЛИЕНТА ====================
+# ==================== ЗАКАЗЫ, ОТЧЁТЫ, РЕЗУЛЬТАТЫ КЛИЕНТА ====================
 
 def get_client_orders(client_id: int, limit: int = None) -> list[dict]:
-    """Получить заказы клиента. limit — максимальное количество (если None — все)."""
+    """Получить заказы клиента."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -264,8 +237,6 @@ def get_client_orders(client_id: int, limit: int = None) -> list[dict]:
         conn.close()
 
 
-# ==================== ОТЧЁТЫ КЛИЕНТА ====================
-
 def get_client_reports(client_id: int) -> list[dict]:
     """Получить все отчёты клиента."""
     conn = get_connection()
@@ -283,8 +254,6 @@ def get_client_reports(client_id: int) -> list[dict]:
     finally:
         conn.close()
 
-
-# ==================== РЕЗУЛЬТАТЫ ИССЛЕДОВАНИЙ КЛИЕНТА ====================
 
 def get_client_results(client_id: int) -> list[dict]:
     """Получить результаты исследований по всем заказам клиента."""
@@ -310,15 +279,15 @@ def get_client_results(client_id: int) -> list[dict]:
 # ==================== СОЗДАНИЕ / ОБНОВЛЕНИЕ ====================
 
 def create_client(client_type: str, name: str, phone: str = '', email: str = '',
-                  login: str = '', password_hash: str = '', **kwargs) -> int:
+                  password_hash: str = '', **kwargs) -> int:
     """Создать нового клиента. Возвращает client_id."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO clients (client_type, login, password_hash, phone, email, is_active)
-                VALUES (%s, %s, %s, %s, %s, 1)
-            """, (client_type, login or None, password_hash or None, phone, email))
+                INSERT INTO clients (client_type, password_hash, phone, email, is_active)
+                VALUES (%s, %s, %s, %s, 1)
+            """, (client_type, password_hash or None, phone, email))
             client_id = cur.lastrowid
 
             if client_type == 'ЮЛ':
@@ -348,16 +317,16 @@ def create_client(client_type: str, name: str, phone: str = '', email: str = '',
 
 
 def update_client(client_id: int, client_type: str, name: str, phone: str = '',
-                  email: str = '', login: str = '', password_hash: str = '', **kwargs):
+                  email: str = '', password_hash: str = '', **kwargs):
     """Обновить данные клиента."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                UPDATE clients SET client_type = %s, login = %s, password_hash = %s,
+                UPDATE clients SET client_type = %s, password_hash = %s,
                                    phone = %s, email = %s
                 WHERE client_id = %s
-            """, (client_type, login or None, password_hash or None, phone, email, client_id))
+            """, (client_type, password_hash or None, phone, email, client_id))
 
             if client_type == 'ЮЛ':
                 cur.execute("""
@@ -407,9 +376,8 @@ def add_client(data: dict) -> int:
         name=data.get('name', ''),
         phone=data.get('phone', ''),
         email=data.get('email', ''),
-        login=data.get('login', ''),
         password_hash=data.get('password_hash', ''),
-        **{k: v for k, v in data.items() if k not in ('client_type', 'name', 'phone', 'email', 'login', 'password_hash')}
+        **{k: v for k, v in data.items() if k not in ('client_type', 'name', 'phone', 'email', 'password_hash')}
     )
 
 
@@ -421,9 +389,10 @@ def update_client_data(data: dict):
         name=data.get('name', ''),
         phone=data.get('phone', ''),
         email=data.get('email', ''),
-        login=data.get('login', ''),
         password_hash=data.get('password_hash', ''),
-        **{k: v for k, v in data.items() if k not in ('client_id', 'client_type', 'name', 'phone', 'email', 'login', 'password_hash')}
+        **{k: v for k, v in data.items() if k not in ('client_id', 'client_type', 'name', 'phone', 'email', 'password_hash')}
     )
 
+
+# Алиас для client_window.py
 get_client_info = get_client_by_id
