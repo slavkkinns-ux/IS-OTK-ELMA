@@ -28,6 +28,28 @@ def get_all_clients() -> list[dict]:
         conn.close()
 
 
+def get_clients_by_type(client_type: str) -> list[dict]:
+    """Получить клиентов по типу (ЮЛ или ФЛ). Используется в order_dialog."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT c.client_id, c.client_type, c.phone, c.email,
+                       CASE WHEN c.client_type = 'ЮЛ' THEN le.company_name
+                            ELSE i.full_name END AS name,
+                       CASE WHEN c.client_type = 'ЮЛ' THEN le.director_name
+                            ELSE i.full_name END AS contact_person
+                FROM clients c
+                LEFT JOIN legal_entities le ON le.client_id = c.client_id AND c.client_type = 'ЮЛ'
+                LEFT JOIN individuals i ON i.client_id = c.client_id AND c.client_type = 'ФЛ'
+                WHERE c.client_type = %s AND c.is_active = 1
+                ORDER BY name
+            """, (client_type,))
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+
 def get_client_by_id(client_id: int) -> dict | None:
     """Получить клиента по ID."""
     conn = get_connection()

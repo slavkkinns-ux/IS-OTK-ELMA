@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem,
     QMessageBox, QDialog, QDateEdit, QLabel, QPushButton,
-    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget, QVBoxLayout, QTextEdit
+    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget, QVBoxLayout, QTextEdit, QSizePolicy
 )
 
 from ui.main_window_ui import Ui_MainWindow

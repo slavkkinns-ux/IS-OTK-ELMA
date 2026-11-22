@@ -16,7 +16,7 @@ def get_active_services() -> list[dict]:
 
 
 def get_order(order_id: int):
-    """Полная карточка заказа. Возвращает также client_type — нужно для диалога."""
+    """Полная карточка заказа. Возвращает также client_type."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -39,6 +39,7 @@ def get_order(order_id: int):
 
 
 def get_order_services(order_id: int):
+    """Получить услуги заказа с реальными ценами из price_at_order."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -77,18 +78,18 @@ def get_next_vessel_code() -> str:
 
 def vessel_code_exists(code: str, exclude_archived: bool = True,
                        exclude_order_id: int | None = None) -> bool:
-    """Проверка дубликата. exclude_order_id — исключить конкретный заказ (при редактировании)."""
+    """Проверка дубликата."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            sql = "SELECT 1 FROM orders WHERE vessel_code = %s"
+            sql = "SELECT 1 FROM orders WHERE vessel_code = %s "
             params = [code]
             if exclude_archived:
-                sql += " AND status != 'В архиве'"
+                sql += " AND status != 'В архиве' "
             if exclude_order_id is not None:
-                sql += " AND order_id <> %s"
+                sql += " AND order_id <> %s "
                 params.append(exclude_order_id)
-            sql += " LIMIT 1"
+            sql += " LIMIT 1 "
             cur.execute(sql, tuple(params))
             return cur.fetchone() is not None
     finally:
@@ -97,6 +98,7 @@ def vessel_code_exists(code: str, exclude_archived: bool = True,
 
 def create_order(vessel_code: str, client_id: int, employee_id: int,
                  service_ids: list[int], total_price: float) -> int:
+    """Создать заказ. Сохраняет РЕАЛЬНУЮ цену каждой услуги в price_at_order."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -106,13 +108,15 @@ def create_order(vessel_code: str, client_id: int, employee_id: int,
             """, (vessel_code, client_id, employee_id))
             order_id = cur.lastrowid
 
-            price_per = total_price / len(service_ids) if service_ids else 0
+            # Берём реальную цену каждой услуги из справочника services
             for sid in service_ids:
+                cur.execute("SELECT price FROM services WHERE service_id = %s", (sid,))
+                row = cur.fetchone()
+                price = float(row['price']) if row else 0
                 cur.execute("""
                     INSERT INTO order_services (order_id, service_id, price_at_order)
                     VALUES (%s, %s, %s)
-                """, (order_id, sid, price_per))
-
+                """, (order_id, sid, price))
             conn.commit()
             return order_id
     except Exception:
@@ -124,7 +128,7 @@ def create_order(vessel_code: str, client_id: int, employee_id: int,
 
 def update_order(order_id: int, vessel_code: str, client_id: int,
                  employee_id: int, service_ids: list[int], total_price: float):
-    """Обновление заказа: шапка + пересоздание услуг."""
+    """Обновление заказа: шапка + пересоздание услуг с реальными ценами."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -135,15 +139,17 @@ def update_order(order_id: int, vessel_code: str, client_id: int,
                     employee_id = %s
                 WHERE order_id = %s
             """, (vessel_code, client_id, employee_id, order_id))
-
             cur.execute("DELETE FROM order_services WHERE order_id = %s", (order_id,))
-            price_per = total_price / len(service_ids) if service_ids else 0
+
+            # Берём реальную цену каждой услуги из справочника services
             for sid in service_ids:
+                cur.execute("SELECT price FROM services WHERE service_id = %s", (sid,))
+                row = cur.fetchone()
+                price = float(row['price']) if row else 0
                 cur.execute("""
                     INSERT INTO order_services (order_id, service_id, price_at_order)
                     VALUES (%s, %s, %s)
-                """, (order_id, sid, price_per))
-
+                """, (order_id, sid, price))
             conn.commit()
     except Exception:
         conn.rollback()
