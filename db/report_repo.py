@@ -223,3 +223,57 @@ def create_report(order_id: int, employee_id: int, file_path: str) -> int:
         raise
     finally:
         conn.close()
+
+def get_next_report_number() -> int:
+    """Получить следующий номер отчёта."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT MAX(report_id) FROM reports")
+            result = cur.fetchone()
+            max_id = result[0] if result and result[0] else 0
+            return max_id + 1
+    finally:
+        conn.close()
+
+def get_report_by_path(file_path: str) -> dict | None:
+    """Найти отчёт по пути к файлу."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT r.report_id, r.order_id, r.report_date, r.file_path,
+                       o.vessel_code, e.full_name as employee_name
+                FROM reports r
+                JOIN orders o ON o.order_id = r.order_id
+                JOIN employees e ON e.employee_id = r.employee_id
+                WHERE r.file_path = %s
+            """, (file_path,))
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+def delete_report(report_id: int):
+    """Удалить отчёт из базы данных."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM reports WHERE report_id = %s", (report_id,))
+            conn.commit()
+    finally:
+        conn.close()
+
+def update_report_path(report_id: int, file_path: str):
+    """Обновить путь к файлу отчёта."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE reports 
+                SET file_path = %s 
+                WHERE report_id = %s
+            """, (file_path, report_id))
+            conn.commit()
+    finally:
+        conn.close()
+

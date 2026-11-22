@@ -7,7 +7,8 @@ from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem,
     QMessageBox, QDialog, QDateEdit, QLabel, QPushButton,
-    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget, QVBoxLayout, QTextEdit, QSizePolicy
+    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget,
+    QVBoxLayout, QTextEdit, QSizePolicy
 )
 
 from ui.main_window_ui import Ui_MainWindow
@@ -326,14 +327,12 @@ class MainWindow(QMainWindow):
         # Все заказы
         h = self.ui.tableOrders.horizontalHeader()
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
-        self.ui.tableOrders.setColumnWidth(1, 220)
-        self.ui.tableOrders.setColumnWidth(3, 200)
         self.ui.tableOrders.setWordWrap(True)
 
         # Клиенты
@@ -352,20 +351,18 @@ class MainWindow(QMainWindow):
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        h.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        self.ui.tableResearchQueue.setColumnWidth(2, 150)
-        self.ui.tableResearchQueue.setColumnWidth(3, 150)
+        h.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        h.setMinimumSectionSize(120)
+        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch) 
         self.ui.tableResearchQueue.setWordWrap(True)
 
         # Исследования отчёта
         h = self.ui.tableReportResearch.horizontalHeader()
-        h.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        h.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        self.ui.tableReportResearch.setColumnWidth(0, 140)
-        self.ui.tableReportResearch.setColumnWidth(1, 140)
-        self.ui.tableReportResearch.setColumnWidth(2, 140)
+        h.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        h.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        h.setMinimumSectionSize(120)
         self.ui.tableReportResearch.setWordWrap(True)
 
         # Последние отчёты
@@ -807,7 +804,7 @@ class MainWindow(QMainWindow):
 
         self._load_research_queue()
         self._load_employees_combo()
-        self._clear_research_details()
+        self._clear_all_research_info()
 
     def _load_employees_combo(self):
         """Загрузить список активных сотрудников в comboResearchEmployee."""
@@ -862,14 +859,18 @@ class MainWindow(QMainWindow):
             self._clear_research_details()
 
     def _clear_research_details(self):
-        """Очистить правую панель."""
+        """Очистить только поля результата исследования."""
+        self.ui.editResearchResultValue.clear()
+        self.ui.textResearchConclusion.clear()
+        self.ui.dateResearchResult.setDate(QDate.currentDate())
+
+    def _clear_all_research_info(self):
+        """Очистить всё, включая информационные метки."""
         self.ui.lblResearchOrderValue.setText('')
         self.ui.lblResearchVesselValue.setText('')
         self.ui.lblResearchClientValue.setText('')
         self.ui.lblResearchServiceValue.setText('')
-        self.ui.editResearchResultValue.clear()
-        self.ui.textResearchConclusion.clear()
-        self.ui.dateResearchResult.setDate(QDate.currentDate())
+        self._clear_research_details()
         self._current_order_service_id = None
 
     def _save_research(self):
@@ -897,8 +898,26 @@ class MainWindow(QMainWindow):
             )
             QMessageBox.information(self, "Готово", "Результат исследования сохранён.")
             self._load_research_queue()
+            
+            # Обновляем страницу отчётов
+            self._refresh_reports_page()
+            
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить результат:\n{e}")
+
+    def _refresh_reports_page(self):
+        """Обновить страницу отчётов."""
+        # Обновляем combo заказов
+        self._load_reports_combo()
+        
+        # Обновляем таблицу исследований для текущего заказа
+        order_id = self.ui.comboreportsOrder.currentData()
+        if order_id:
+            self._load_report_research_table(order_id)
+            self._update_report_preview(order_id)
+        
+        # Обновляем список последних отчётов
+        self._load_recent_reports()
 
     def _clear_research(self):
         """Очистить поля ввода результата."""
@@ -1006,16 +1025,116 @@ class MainWindow(QMainWindow):
         self.ui.btnPrintReport.clicked.connect(self._print_report)
         self.ui.comboreportsOrder.currentIndexChanged.connect(self._on_report_order_changed)
 
-        self._current_report_path = None   # путь к PDF, созданному в этой сессии
-        self._doc_table_label = None       # QLabel с HTML-таблицей исследований
+        self._current_report_path = None
+
+        # Отключаем навигацию в QTextBrowser
+        self.ui.reportPreviewBrowser.setOpenLinks(False)
+        self.ui.reportPreviewBrowser.setReadOnly(True)
+        
+        # Стили
+        self.ui.reportPreviewBrowser.setStyleSheet("""
+            QTextBrowser {
+                background-color: #FFFFFF;
+                border: 1px solid #D8E3EF;
+                border-radius: 8px;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+            }
+        """)
 
         self._load_reports_combo()
         self._load_recent_reports()
 
-        # Сразу показываем предпросмотр для первого заказа
         order_id = self.ui.comboreportsOrder.currentData()
         if order_id:
             self._update_report_preview(order_id)
+
+        self._add_delete_report_button()
+        self._reposition_create_report_button()
+
+    def _add_delete_report_button(self):
+        """Добавить кнопку удаления отчёта рядом с заголовком."""
+        from PyQt6.QtWidgets import QPushButton, QHBoxLayout
+        from PyQt6.QtCore import Qt
+
+        btn_delete = QPushButton("Удалить выбранные")
+        btn_delete.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+        """)
+        btn_delete.clicked.connect(self._delete_selected_reports)
+
+        # Находим layout фрейма recentReportsFrame
+        layout = self.ui.recentReportsFrame.layout()
+        if not layout:
+            return
+
+        # Ищем заголовок lblRecentReportsTitle и оборачиваем его с кнопкой в горизонтальный layout
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item and item.widget() == self.ui.lblRecentReportsTitle:
+                layout.removeWidget(self.ui.lblRecentReportsTitle)
+
+                header_layout = QHBoxLayout()
+                header_layout.addWidget(self.ui.lblRecentReportsTitle)
+                header_layout.addStretch()
+                header_layout.addWidget(btn_delete)
+
+                layout.insertLayout(i, header_layout)
+                break
+
+    def _delete_selected_reports(self):
+        """Удалить выбранный отчёт."""
+        row = self.ui.tableRecentReports.currentRow()
+        if row < 0:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Удаление", "Выберите отчёт для удаления.")
+            return
+
+        item = self.ui.tableRecentReports.item(row, 0)
+        if not item:
+            return
+
+        file_path = item.data(Qt.ItemDataRole.UserRole)
+        report_num = item.text()
+
+        if not file_path:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Ошибка", "Путь к файлу не найден.")
+            return
+
+        import os
+        from PyQt6.QtWidgets import QMessageBox
+
+        reply = QMessageBox.question(
+            self, "Подтверждение",
+            f"Удалить отчёт {report_num}?\n\nФайл: {file_path}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    QMessageBox.information(self, "Готово", "Отчёт удалён.")
+                    self._load_recent_reports()
+                else:
+                    QMessageBox.warning(self, "Ошибка", "Файл не найден.")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось удалить отчёт:\n{e}")
 
     # ---------- выбор заказа ----------
 
@@ -1071,7 +1190,7 @@ class MainWindow(QMainWindow):
         return lay
 
     def _update_report_preview(self, order_id: int):
-        """Заполняет встроенный предпросмотр (reportDocumentFrame)."""
+        """Обновить предпросмотр отчёта."""
         order = order_repo.get_order(order_id)
         if not order:
             return
@@ -1079,85 +1198,155 @@ class MainWindow(QMainWindow):
         self._preview_order_id = order_id
         self._current_report_path = None
 
-        # --- Шапка документа ---
-        self.ui.lblDocumentOrganization.setText('ООО "СПбЦ "ЭЛМА""')
-        self.ui.lblDocumentOrganization.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.ui.lblDocumentOrganization.setStyleSheet(
-            "font-size: 11pt; font-weight: bold;")
-
-        self.ui.lblDocumentTitle.setText("ОТЧЁТ О РЕЗУЛЬТАТАХ ИССЛЕДОВАНИЙ")
-        self.ui.lblDocumentTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.ui.lblDocumentTitle.setStyleSheet(
-            "font-size: 13pt; font-weight: bold; color: #174A7E;")
-
-        # --- Реквизиты ---
         existing = report_repo.get_report_by_order(order_id)
         if existing:
-            num_text = (f"Номер отчёта: ОТЧ-{existing['report_id']:04d} "
-                        f"от {format_date(existing['report_date'])}")
+            report_num = f"ОТЧ-{existing['report_id']:04d}"
+            report_date = format_date(existing['report_date'])
             self._current_report_path = existing.get('file_path')
         else:
-            num_text = "Номер отчёта: не сформирован"
+            next_id = report_repo.get_next_report_number()
+            report_num = f"ОТЧ-{next_id:04d}"
+            report_date = datetime.now().strftime('%d.%m.%Y')
 
-        self.ui.lblDocumentNumber.setText(num_text)
-        self.ui.lblDocumentOrder.setText(
-            f"Номер заказа: {order['order_id']}    Код сосуда: {order['vessel_code']}    "
-            f"Дата: {format_date(order.get('order_date'))}")
-        self.ui.lblDocumentClient.setText(f"Заказчик: {order.get('client_name') or ''}")
+        client_name = order.get('client_name', '')
+        vessel_code = order.get('vessel_code', '')
+        order_date = format_date(order.get('order_date'))
 
-        for name in ("lblDocumentNumber", "lblDocumentOrder", "lblDocumentClient"):
-            getattr(self.ui, name).setStyleSheet("font-size: 10pt;")
-            getattr(self.ui, name).setWordWrap(True)
+        research_rows = report_repo.get_report_research(order_id)
 
-        self.ui.lblDocumentResearchTitle.setText("Перечень выполненных исследований:")
-        self.ui.lblDocumentResearchTitle.setStyleSheet(
-            "font-size: 11pt; font-weight: bold; color: #244B73;")
-
-        # --- HTML-таблица исследований ---
-        rows = report_repo.get_report_research(order_id)
-        html = ('<table border="1" cellpadding="5" cellspacing="0" '
-                'style="border-collapse:collapse; width:100%;">'
-                '<tr style="background-color:#174A7E; color:#FFFFFF; font-weight:bold;">'
-                '<td width="30">№</td><td>Исследование</td>'
-                '<td>Результат</td><td>Заключение</td></tr>')
-        if rows:
-            for idx, r in enumerate(rows, 1):
+        # HTML таблицы
+        table_rows_html = ''
+        if research_rows:
+            for idx, r in enumerate(research_rows, 1):
                 bg = "#F0F5FA" if idx % 2 == 0 else "#FFFFFF"
-                html += (f'<tr style="background-color:{bg};">'
-                         f'<td align="center">{idx}</td>'
-                         f'<td>{r["service_name"]}</td>'
-                         f'<td>{r["result_value"] or "Не выполнено"}</td>'
-                         f'<td>{r["conclusion"] or "-"}</td></tr>')
+                service = r.get('service_name', '')
+                result = r.get('result_value') or 'Не выполнено'
+                conclusion = r.get('conclusion') or '-'
+                table_rows_html += f"""
+                    <tr style="background-color: {bg};">
+                        <td style="text-align: center;">{idx}</td>
+                        <td>{service}</td>
+                        <td>{result}</td>
+                        <td>{conclusion}</td>
+                    </tr>
+                """
         else:
-            html += '<tr><td colspan="4" align="center">Исследования не назначены</td></tr>'
-        html += '</table>'
+            table_rows_html = '<tr><td colspan="4" style="text-align: center;">Исследования не назначены</td></tr>'
 
-        lay = self._ensure_document_layout()
-        if self._doc_table_label is None:
-            self._doc_table_label = QLabel()
-            self._doc_table_label.setWordWrap(True)
-            self._doc_table_label.setTextFormat(Qt.TextFormat.RichText)
-            self._doc_table_label.setAlignment(
-                Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-            # вставляем сразу после заголовка «Перечень исследований»
-            idx = lay.indexOf(self.ui.lblDocumentResearchTitle)
-            lay.insertWidget(idx + 1 if idx >= 0 else lay.count(), self._doc_table_label)
-        self._doc_table_label.setText(html)
-
-        # --- Заключение ---
-        conclusions = [r['conclusion'] for r in rows if r.get('conclusion')]
+        # Заключение
+        conclusions = [r.get('conclusion') for r in research_rows if r.get('conclusion')]
         if conclusions:
             conclusion_text = "Заключение: " + "; ".join(conclusions)
-        elif rows and all(r.get('result_value') for r in rows):
+        elif research_rows and all(r.get('result_value') for r in research_rows):
             conclusion_text = "Заключение: все исследования выполнены."
         else:
             conclusion_text = "Заключение: часть исследований ещё не выполнена."
-        self.ui.lblDocumentConclusion.setText(conclusion_text)
-        self.ui.lblDocumentConclusion.setWordWrap(True)
-        self.ui.lblDocumentConclusion.setStyleSheet("font-size: 10pt; padding-top: 8px;")
 
-        # --- Информация о клиенте слева (если такие метки есть в UI) ---
-        self._fill_client_info_panel(order)
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    font-size: 11pt;
+                    color: #000000;
+                    margin: 40px;
+                    line-height: 1.6;
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                }}
+                .org-name {{
+                    font-size: 16pt;
+                    font-weight: bold;
+                    margin-bottom: 20px;
+                }}
+                .report-title {{
+                    font-size: 14pt;
+                    font-weight: bold;
+                    color: #174A7E;
+                    margin-bottom: 30px;
+                }}
+                .info-block {{
+                    margin-bottom: 15px;
+                }}
+                .table-title {{
+                    text-align: center;
+                    font-size: 12pt;
+                    font-weight: bold;
+                    color: #174A7E;
+                    margin: 30px 0 20px 0;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }}
+                th {{
+                    background-color: #174A7E;
+                    color: #FFFFFF;
+                    padding: 10px 8px;
+                    text-align: left;
+                    font-weight: bold;
+                    border: 1px solid #D2DFEC;
+                }}
+                td {{
+                    padding: 8px;
+                    border: 1px solid #D2DFEC;
+                    vertical-align: middle;
+                }}
+                .conclusion {{
+                    margin-top: 30px;
+                    font-size: 11pt;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="org-name">ООО "СПбЦ "ЭЛМА""</div>
+                <div class="report-title">ОТЧЁТ О РЕЗУЛЬТАТАХ ИССЛЕДОВАНИЙ</div>
+            </div>
+
+            <div class="info-block">
+                <strong>Номер отчёта:</strong> {report_num} от {report_date}
+            </div>
+
+            <div class="info-block">
+                <strong>Заказчик:</strong> {client_name}
+            </div>
+
+            <div class="info-block">
+                <strong>Номер заказа:</strong> {vessel_code} &nbsp;&nbsp;&nbsp;
+                <strong>Дата:</strong> {order_date}
+            </div>
+
+            <div class="table-title">Перечень выполненных исследований:</div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">№</th>
+                        <th style="width: 40%;">Исследование</th>
+                        <th style="width: 25%;">Результат</th>
+                        <th style="width: 30%;">Заключение</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows_html}
+                </tbody>
+            </table>
+
+            <div class="conclusion">
+                {conclusion_text}
+            </div>
+        </body>
+        </html>
+        """
+
+        self.ui.reportPreviewBrowser.setHtml(html)
 
     def _fill_client_info_panel(self, order: dict):
         """Заполняет левый блок «Информация о клиенте», если метки существуют."""
@@ -1183,8 +1372,74 @@ class MainWindow(QMainWindow):
     # ---------- последние отчёты ----------
 
     def _load_recent_reports(self):
-        rows = report_repo.get_recent_reports()
-        self._populate_recent_reports_table(rows)
+        """Загрузить отчёты из папки reports."""
+        import re
+        from pathlib import Path
+        from datetime import datetime
+
+        reports_dir = Path(__file__).parent / 'reports'
+        if not reports_dir.exists():
+            self.ui.tableRecentReports.setRowCount(0)
+            return
+
+        pdf_files = [f for f in reports_dir.glob('*.pdf') if f.is_file()]
+        if not pdf_files:
+            self.ui.tableRecentReports.setRowCount(0)
+            return
+
+        pdf_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+
+        self.ui.tableRecentReports.setSortingEnabled(False)
+        self.ui.tableRecentReports.setRowCount(len(pdf_files))
+
+        for row_idx, pdf_file in enumerate(pdf_files):
+            filename = pdf_file.stem  # ОТЧ-0013
+            
+            # Парсим номер отчёта из имени файла
+            match = re.match(r'ОТЧ-(\d+)', filename)
+            if match:
+                report_id = int(match.group(1))
+                report_num = f"ОТЧ-{report_id:04d}"
+            else:
+                report_num = f"ОТЧ-{row_idx + 1:04d}"
+                report_id = None
+            
+            # Значения по умолчанию
+            order_number = 'Неизвестно'   # ← переименовали, теперь это vessel_code
+            employee_name = 'Неизвестно'
+            report_date = ''
+            
+            if report_id:
+                try:
+                    rep = report_repo.get_report(report_id)
+                    if rep:
+                        # rep — словарь: {'report_id': ..., 'order_id': ..., 'vessel_code': 'С-0001',
+                        #                'employee_name': 'Администратор системы', ...}
+                        order_number = rep.get('vessel_code') or 'Неизвестно'
+                        employee_name = rep.get('employee_name') or 'Неизвестно'
+                        report_date_obj = rep.get('report_date')
+                        if report_date_obj:
+                            if hasattr(report_date_obj, 'strftime'):
+                                report_date = report_date_obj.strftime('%d.%m.%Y')
+                            else:
+                                report_date = str(report_date_obj)
+                except Exception as e:
+                    print(f"[DEBUG] Ошибка получения данных отчёта {report_id}: {e}")
+            
+            # Если дата не из БД — берём из файла
+            if not report_date:
+                file_time = datetime.fromtimestamp(pdf_file.stat().st_mtime)
+                report_date = file_time.strftime('%d.%m.%Y %H:%M:%S')
+
+            item_report_id = QTableWidgetItem(report_num)
+            item_report_id.setData(Qt.ItemDataRole.UserRole, str(pdf_file))
+            self.ui.tableRecentReports.setItem(row_idx, 0, item_report_id)
+
+            self.ui.tableRecentReports.setItem(row_idx, 1, QTableWidgetItem(str(order_number)))
+            self.ui.tableRecentReports.setItem(row_idx, 2, QTableWidgetItem(report_date))
+            self.ui.tableRecentReports.setItem(row_idx, 3, QTableWidgetItem(employee_name))
+
+        self.ui.tableRecentReports.setSortingEnabled(True)
 
     def _populate_recent_reports_table(self, rows):
         self.ui.tableRecentReports.setSortingEnabled(False)
@@ -1219,12 +1474,20 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            from report_generator import generate_report_pdf
-            filepath = generate_report_pdf(order_id)
+            # Сначала создаём запись в БД и получаем report_id
             report_id = report_repo.create_report(
-                order_id, Session.get_user_id(), filepath)
-
+                order_id, Session.get_user_id(), None)  # file_path пока None
+            
+            # Теперь генерируем PDF с правильным именем
+            from report_generator import generate_report_pdf
+            filepath = generate_report_pdf(order_id, report_id)
+            
+            # Обновляем запись в БД с реальным путём
+            report_repo.update_report_path(report_id, filepath)
+            
             self._current_report_path = filepath
+            
+            # Обновляем номер отчёта в предпросмотре
             self.ui.lblDocumentNumber.setText(
                 f"Номер отчёта: ОТЧ-{report_id:04d} от {datetime.now().strftime('%d.%m.%Y')}")
 
@@ -1234,8 +1497,8 @@ class MainWindow(QMainWindow):
                 f"Отчёт ОТЧ-{report_id:04d} сохранён.\nФайл: {filepath}")
         except ImportError:
             QMessageBox.critical(self, "Ошибка",
-                                 "Не установлена библиотека reportlab.\n"
-                                 "Выполните: pip install reportlab")
+                                "Не установлена библиотека reportlab.\n"
+                                "Выполните: pip install reportlab")
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сформировать отчёт:\n{e}")
 
@@ -1296,3 +1559,52 @@ class MainWindow(QMainWindow):
                 subprocess.Popen(['lp', path])
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось отправить на печать:\n{e}")
+
+    def _reposition_create_report_button(self):
+        """Переместить кнопку 'Сформировать отчёт' в низ фрейма и отцентрировать."""
+        vlay = self.ui.reportCreationFrame.layout()
+        if not vlay:
+            return
+        # Извлекаем кнопку из текущего вертикального layout
+        vlay.removeWidget(self.ui.btnCreateReport)
+        # Оборачиваем в горизонтальный layout со stretch по бокам = центрирование
+        hlay = QHBoxLayout()
+        hlay.addStretch()
+        hlay.addWidget(self.ui.btnCreateReport)
+        hlay.addStretch()
+        vlay.addLayout(hlay)
+
+    def _setup_report_preview_browser(self):
+        """Создать QTextBrowser для предпросмотра отчёта вместо набора QLabel'ов."""
+        from PyQt6.QtWidgets import QTextBrowser
+        from PyQt6.QtCore import Qt
+        
+        # Находим фрейм предпросмотра
+        preview_frame = self.ui.reportPreviewFrame
+        old_layout = preview_frame.layout()
+        
+        # Удаляем старые виджеты из layout (но не сам layout)
+        if old_layout:
+            while old_layout.count():
+                item = old_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+        
+        # Создаём QTextBrowser
+        self.report_preview_browser = QTextBrowser()
+        self.report_preview_browser.setOpenExternalLinks(False)
+        self.report_preview_browser.setStyleSheet("""
+            QTextBrowser {
+                background-color: #FFFFFF;
+                border: 1px solid #D8E3EF;
+                border-radius: 8px;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
+            }
+        """)
+
+        # Растягиваем браузер на весь доступный размер
+        self.report_preview_browser.setMinimumHeight(600)
+        # Добавляем в layout
+        old_layout.addWidget(self.report_preview_browser)

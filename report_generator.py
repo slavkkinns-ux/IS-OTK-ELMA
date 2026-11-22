@@ -2,14 +2,19 @@
 import os
 import sys
 from datetime import datetime
-
-from db import order_repo
-
+from pathlib import Path
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm, cm
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from db import order_repo, report_repo
 
 # =============================================================================
 # Регистрация кириллического шрифта
 # =============================================================================
-
 def _register_cyrillic_font():
     """Регистрирует шрифт Arial (или DejaVu) для поддержки кириллицы."""
     from reportlab.pdfbase import pdfmetrics
@@ -39,7 +44,6 @@ def _register_cyrillic_font():
             except Exception:
                 pass
 
-
 # Регистрируем один раз при импорте
 _register_cyrillic_font()
 
@@ -65,140 +69,182 @@ if not _font_available(FONT_NAME):
 # =============================================================================
 # Генерация PDF
 # =============================================================================
+def generate_report_pdf(order_id: int, report_id: int = None) -> str:
+    """Сгенерировать PDF отчёта.
 
-def generate_report_pdf(order_id: int, output_dir: str = "reports") -> str:
-    """Генерирует PDF-отчёт для заказа. Возвращает путь к файлу."""
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    )
-    from reportlab.lib import colors
+    Args:
+        order_id: ID заказа
+        report_id: ID отчёта (для имени файла). Если None, используется order_id.
+    """
+    # Путь к папке reports
+    reports_dir = Path(__file__).parent / 'reports'
+    reports_dir.mkdir(exist_ok=True)
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # Формируем имя файла
+    if report_id:
+        filename = f"ОТЧ-{report_id:04d}.pdf"
+    else:
+        filename = f"ОТЧ-{order_id:04d}.pdf"
 
+    filepath = str(reports_dir / filename)
+
+    # Получаем данные заказа
     order = order_repo.get_order(order_id)
     if not order:
-        raise ValueError(f"Заказ #{order_id} не найден")
+        raise ValueError(f"Заказ {order_id} не найден")
 
-    services = order_repo.get_order_services(order_id)
+    # Получаем исследования по заказу
+    research_rows = report_repo.get_report_research(order_id)
 
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"report_{order['vessel_code']}_{timestamp}.pdf"
-    filepath = os.path.join(output_dir, filename)
+    # Создаём PDF
+    c = canvas.Canvas(filepath, pagesize=A4)
+    width, height = A4
 
-    doc = SimpleDocTemplate(
-        filepath, pagesize=A4,
-        rightMargin=20 * mm, leftMargin=20 * mm,
-        topMargin=20 * mm, bottomMargin=20 * mm,
-    )
+    y = height - 30  # начальная позиция Y (сверху)
 
-    styles = getSampleStyleSheet()
+    # --- Шапка ---
+    c.setFont(FONT_BOLD, 14)
+    c.drawCentredString(width / 2, y, 'ООО "СПбЦ "ЭЛМА""')
+    y -= 40
 
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontName=FONT_BOLD,
-        fontSize=16,
-        textColor=colors.HexColor('#174A7E'),
-        spaceAfter=12 * mm,
-    )
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontName=FONT_BOLD,
-        fontSize=12,
-        textColor=colors.HexColor('#244B73'),
-        spaceAfter=6 * mm,
-    )
-    normal_style = ParagraphStyle(
-        'CustomNormal',
-        parent=styles['Normal'],
-        fontName=FONT_NAME,
-        fontSize=10,
-    )
+    c.setFont(FONT_BOLD, 12)
+    c.setFillColor(colors.HexColor('#174A7E'))
+    c.drawCentredString(width / 2, y, 'ОТЧЁТ О РЕЗУЛЬТАТАХ ИССЛЕДОВАНИЙ')
+    c.setFillColor(colors.black)
+    y -= 40
 
-    story = []
+    # --- Реквизиты ---
+    c.setFont(FONT_NAME, 10)
+    report_num = f"ОТЧ-{report_id:04d}" if report_id else f"ОТЧ-{order_id:04d}"
+    report_date = datetime.now().strftime('%d.%m.%Y')
+    c.drawString(30, y, f"Номер отчёта: {report_num} от {report_date}")
+    y -= 20
 
-    # Заголовок
-    story.append(Paragraph("ОТЧЁТ ПО ЗАКАЗУ", title_style))
-    story.append(Spacer(1, 5 * mm))
+    client_name = order.get('client_name', '')
+    c.drawString(30, y, f"Заказчик: {client_name}")
+    y -= 20
 
-    # Информация о заказе
-    story.append(Paragraph("Информация о заказе", heading_style))
-    order_date_str = ''
-    if order.get('order_date'):
-        if isinstance(order['order_date'], datetime):
-            order_date_str = order['order_date'].strftime('%d.%m.%Y')
+    vessel_code = order.get('vessel_code', '')
+    order_date = order.get('order_date')
+    if order_date:
+        if hasattr(order_date, 'strftime'):
+            order_date_str = order_date.strftime('%d.%m.%Y')
         else:
-            order_date_str = str(order['order_date'])
+            order_date_str = str(order_date)
+    else:
+        order_date_str = ''
 
-    info_data = [
-        ['Номер заказа:', str(order['order_id'])],
-        ['Код сосуда:', order['vessel_code']],
-        ['Клиент:', order['client_name']],
-        ['Сотрудник:', order['employee_name']],
-        ['Дата:', order_date_str],
-        ['Статус:', order['status']],
-    ]
-    info_table = Table(info_data, colWidths=[50 * mm, 120 * mm])
-    info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-        ('FONTNAME', (0, 0), (0, -1), FONT_BOLD),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F5FA')),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    story.append(info_table)
-    story.append(Spacer(1, 8 * mm))
+    # ИСПРАВЛЕНО: vessel_code вместо order_id
+    c.drawString(30, y, f"Номер заказа: {vessel_code}    Дата: {order_date_str}")
+    y -= 40
 
-    # Услуги
-    story.append(Paragraph("Выполненные исследования", heading_style))
-    services_data = [['№', 'Услуга', 'Стоимость']]
-    total = 0.0
-    for idx, s in enumerate(services, 1):
-        price = float(s['price'])
-        total += price
-        services_data.append([
-            str(idx),
-            s['service_name'],
-            f"{price:.2f} ₽",
-        ])
-    services_data.append(['', 'ИТОГО:', f"{total:.2f} ₽"])
+    # --- Заголовок таблицы ---
+    c.setFont(FONT_BOLD, 11)
+    c.setFillColor(colors.HexColor('#174A7E'))
+    c.drawCentredString(width / 2, y, 'Перечень выполненных исследований:')
+    c.setFillColor(colors.black)
+    y -= 25
 
-    services_table = Table(services_data, colWidths=[15 * mm, 120 * mm, 35 * mm])
-    services_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-        ('FONTNAME', (0, 0), (-1, 0), FONT_BOLD),
-        ('FONTNAME', (0, -1), (-1, -1), FONT_BOLD),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#174A7E')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#F0F5FA')),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    story.append(services_table)
-    story.append(Spacer(1, 10 * mm))
+    # --- Таблица исследований ---
+    if research_rows:
+        # Заголовки
+        table_data = [['№', 'Исследование', 'Результат', 'Заключение']]
 
-    # Подпись
-    story.append(Paragraph(
-        f"Отчёт сформирован: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-        normal_style,
-    ))
+        for idx, row in enumerate(research_rows, 1):
+            service_name = row.get('service_name', '') or ''
+            result_value = row.get('result_value', '') or 'Не выполнено'
+            conclusion = row.get('conclusion', '') or '-'
+            table_data.append([str(idx), service_name, result_value, conclusion])
 
-    doc.build(story)
+        # Создаём стили для ячеек с кириллицей
+        header_style = ParagraphStyle(
+            'HeaderStyle',
+            fontName=FONT_BOLD,
+            fontSize=9,
+            textColor=colors.white,
+            alignment=TA_CENTER,
+            leading=11,
+        )
+        cell_style = ParagraphStyle(
+            'CellStyle',
+            fontName=FONT_NAME,
+            fontSize=9,
+            leading=11,
+        )
+        cell_style_center = ParagraphStyle(
+            'CellStyleCenter',
+            fontName=FONT_NAME,
+            fontSize=9,
+            alignment=TA_CENTER,
+            leading=11,
+        )
+
+        # Формируем данные таблицы с Paragraph (для переноса текста)
+        styled_data = []
+        for row_idx, row in enumerate(table_data):
+            if row_idx == 0:
+                styled_row = [
+                    Paragraph(row[0], header_style),
+                    Paragraph(row[1], header_style),
+                    Paragraph(row[2], header_style),
+                    Paragraph(row[3], header_style),
+                ]
+            else:
+                styled_row = [
+                    Paragraph(row[0], cell_style_center),
+                    Paragraph(row[1], cell_style),
+                    Paragraph(row[2], cell_style),
+                    Paragraph(row[3], cell_style),
+                ]
+            styled_data.append(styled_row)
+
+        # Ширина колонок: № узкая, Исследование широкая, Результат и Заключение средние
+        col_widths = [30, 220, 130, 130]
+        table = Table(styled_data, colWidths=col_widths, repeatRows=1)
+
+        table.setStyle(TableStyle([
+            # Шапка
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#174A7E')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            # Сетка
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D2DFEC')),
+            # Выравнивание
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            # Чередование строк
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0F5FA')]),
+        ]))
+
+        # Рисуем таблицу
+        table.wrapOn(c, width - 60, height)
+        table_height = table._height
+        table.drawOn(c, 30, y - table_height)
+        y -= table_height + 30
+    else:
+        c.setFont(FONT_NAME, 10)
+        c.drawString(30, y, 'Исследования не назначены')
+        y -= 30
+
+    # --- Заключение ---
+    c.setFont(FONT_NAME, 10)
+    conclusions = [r.get('conclusion') for r in research_rows if r.get('conclusion')]
+    if conclusions:
+        conclusion_text = "Заключение: " + "; ".join(conclusions)
+    elif research_rows and all(r.get('result_value') for r in research_rows):
+        conclusion_text = "Заключение: все исследования выполнены."
+    else:
+        conclusion_text = "Заключение: часть исследований ещё не выполнена."
+
+    # Разбиваем длинный текст на строки
+    max_line_length = 90
+    lines = [conclusion_text[i:i + max_line_length]
+             for i in range(0, len(conclusion_text), max_line_length)]
+    for line in lines:
+        c.drawString(30, y, line)
+        y -= 15
+
+    c.save()
     return filepath

@@ -399,7 +399,7 @@ QLabel#lblSidebarTitle {
             <enum>QFrame::Raised</enum>
            </property>
            <property name="currentIndex">
-            <number>4</number>
+            <number>3</number>
            </property>
            <widget class="QWidget" name="pageHome">
             <property name="styleSheet">
@@ -1630,6 +1630,9 @@ QScrollBar::sub-line:horizontal {
                </item>
                <item>
                 <widget class="QTableWidget" name="tableOrders">
+                 <property name="sizeAdjustPolicy">
+                  <enum>QAbstractScrollArea::AdjustToContents</enum>
+                 </property>
                  <attribute name="verticalHeaderVisible">
                   <bool>false</bool>
                  </attribute>
@@ -2638,7 +2641,10 @@ QScrollBar::sub-line:horizontal {
                <property name="frameShadow">
                 <enum>QFrame::Raised</enum>
                </property>
-               <layout class="QHBoxLayout" name="horizontalLayout_16">
+               <layout class="QHBoxLayout" name="horizontalLayout_16" stretch="9,3">
+                <property name="spacing">
+                 <number>6</number>
+                </property>
                 <property name="leftMargin">
                  <number>0</number>
                 </property>
@@ -2654,7 +2660,7 @@ QScrollBar::sub-line:horizontal {
                 <item>
                  <widget class="QFrame" name="queueFrameResearch">
                   <property name="sizePolicy">
-                   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                     <horstretch>0</horstretch>
                     <verstretch>0</verstretch>
                    </sizepolicy>
@@ -2667,7 +2673,7 @@ QScrollBar::sub-line:horizontal {
                   </property>
                   <property name="maximumSize">
                    <size>
-                    <width>500</width>
+                    <width>16777215</width>
                     <height>16777215</height>
                    </size>
                   </property>
@@ -2677,7 +2683,7 @@ QScrollBar::sub-line:horizontal {
                   <property name="frameShadow">
                    <enum>QFrame::Raised</enum>
                   </property>
-                  <layout class="QVBoxLayout" name="verticalLayout_22">
+                  <layout class="QVBoxLayout" name="verticalLayout_22" stretch="0">
                    <item>
                     <layout class="QVBoxLayout" name="verticalLayout_21">
                      <item>
@@ -2793,7 +2799,7 @@ QScrollBar::sub-line:horizontal {
                 <item>
                  <widget class="QFrame" name="detailsFrameResearch">
                   <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                     <horstretch>0</horstretch>
                     <verstretch>0</verstretch>
                    </sizepolicy>
@@ -3475,95 +3481,28 @@ QPushButton#btnOpenReport:hover {
                              <rect>
                               <x>0</x>
                               <y>0</y>
-                              <width>498</width>
-                              <height>586</height>
+                              <width>515</width>
+                              <height>336</height>
                              </rect>
                             </property>
                             <layout class="QVBoxLayout" name="verticalLayout_33">
+                             <property name="spacing">
+                              <number>0</number>
+                             </property>
+                             <property name="leftMargin">
+                              <number>0</number>
+                             </property>
+                             <property name="topMargin">
+                              <number>0</number>
+                             </property>
+                             <property name="rightMargin">
+                              <number>0</number>
+                             </property>
+                             <property name="bottomMargin">
+                              <number>0</number>
+                             </property>
                              <item>
-                              <widget class="QWidget" name="widget_2" native="true">
-                               <layout class="QVBoxLayout" name="verticalLayout_32">
-                                <item>
-                                 <widget class="QFrame" name="reportDocumentFrame">
-                                  <property name="minimumSize">
-                                   <size>
-                                    <width>400</width>
-                                    <height>550</height>
-                                   </size>
-                                  </property>
-                                  <property name="frameShape">
-                                   <enum>QFrame::StyledPanel</enum>
-                                  </property>
-                                  <property name="frameShadow">
-                                   <enum>QFrame::Raised</enum>
-                                  </property>
-                                  <layout class="QVBoxLayout" name="verticalLayout_31">
-                                   <item>
-                                    <widget class="QLabel" name="lblDocumentOrganization">
-                                     <property name="text">
-                                      <string>ООО &quot;СПбЦ &quot;ЭЛМА&quot;&quot;</string>
-                                     </property>
-                                     <property name="alignment">
-                                      <set>Qt::AlignCenter</set>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                   <item>
-                                    <widget class="QLabel" name="lblDocumentTitle">
-                                     <property name="text">
-                                      <string>ОТЧЁТ О РЕЗУЛЬТАТАХ ИССЛЕДОВАНИЙ</string>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                   <item>
-                                    <widget class="QLabel" name="lblDocumentNumber">
-                                     <property name="text">
-                                      <string>Номер отчёта:</string>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                   <item>
-                                    <widget class="QLabel" name="lblDocumentClient">
-                                     <property name="text">
-                                      <string>Заказчик:</string>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                   <item>
-                                    <widget class="QLabel" name="lblDocumentOrder">
-                                     <property name="text">
-                                      <string>Номер заказа:</string>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                   <item>
-                                    <widget class="QLabel" name="lblDocumentResearchTitle">
-                                     <property name="font">
-                                      <font>
-                                       <weight>75</weight>
-                                       <bold>true</bold>
-                                      </font>
-                                     </property>
-                                     <property name="text">
-                                      <string>Результаты исследований</string>
-                                     </property>
-                                     <property name="alignment">
-                                      <set>Qt::AlignCenter</set>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                   <item>
-                                    <widget class="QLabel" name="lblDocumentConclusion">
-                                     <property name="text">
-                                      <string>Заключение: </string>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                  </layout>
-                                 </widget>
-                                </item>
-                               </layout>
-                              </widget>
+                              <widget class="QTextBrowser" name="reportPreviewBrowser"/>
                              </item>
                             </layout>
                            </widget>
