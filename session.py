@@ -41,27 +41,27 @@ ROLE_PERMISSIONS = {
     Role.MANAGER: {
         "can_create_order": True, "can_view_orders": True,
         "can_create_reports": False, "can_view_reports": False,
-        "can_do_research": False,
+        "can_do_research": False, "can_manage_employees": False,
     },
     Role.LAB_TECHNICIAN: {
         "can_create_order": True, "can_view_orders": True,
         "can_create_reports": True, "can_view_reports": True,
-        "can_do_research": True,
+        "can_do_research": True, "can_manage_employees": False,
     },
     Role.CONTROLLER: {
         "can_create_order": True, "can_view_orders": True,
         "can_create_reports": True, "can_view_reports": True,
-        "can_do_research": True,
+        "can_do_research": True, "can_manage_employees": False,
     },
     Role.ADMIN: {
         "can_create_order": True, "can_view_orders": True,
         "can_create_reports": True, "can_view_reports": True,
-        "can_do_research": True,
+        "can_do_research": True, "can_manage_employees": True,
     },
     Role.CLIENT: {
         "can_create_order": False, "can_view_orders": True,
         "can_create_reports": False, "can_view_reports": True,
-        "can_do_research": False,
+        "can_do_research": False, "can_manage_employees": False,
     },
 }
 

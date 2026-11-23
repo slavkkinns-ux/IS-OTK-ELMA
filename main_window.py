@@ -10,13 +10,16 @@ from PyQt6.QtWidgets import (
     QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget,
     QVBoxLayout, QTextEdit, QSizePolicy
 )
-
+from PyQt6 import QtGui, QtCore
 from ui.main_window_ui import Ui_MainWindow
 from session import Session
 from dialogs import (
-    OrderDialog, ViewOrderDialog,
-    ClientDialog, ClientEditDialog, ClientViewDialog, ServicesDialog, ResearchResultDialog
+    OrderDialog, ViewOrderDialog, ClientDialog,
+    ClientEditDialog, ClientViewDialog, ServicesDialog,
+    ResearchResultDialog
 )
+from dialogs.employee_dialog import EmployeeDialog
+from pages.employees_page import EmployeesPage
 from db import client_repo, order_repo, report_repo
 
 class LogWidget(QWidget):
@@ -179,6 +182,8 @@ class MainWindow(QMainWindow):
 
         self._log_window = None
         self._apply_role_permissions()
+        if self._is_admin():
+             self._create_employees_page()
         self._setup_sidebar()
         self._setup_tables()
         self._setup_home_tab()
@@ -192,8 +197,11 @@ class MainWindow(QMainWindow):
         close()
         event.accept()
 
-    def show_page(self, page):
-        self.ui.stackedWidget.setCurrentWidget(page)
+    def show_page(self, page_index: int):
+        """Переключиться на указанную страницу."""
+        print(f"[DEBUG] Переключение на страницу с индексом: {page_index}")
+        print(f"[DEBUG] Всего страниц в стеке: {self.ui.stackedWidget.count()}")
+        self.ui.stackedWidget.setCurrentIndex(page_index)
 
     def logout(self):
         Session.clear()
@@ -231,6 +239,29 @@ class MainWindow(QMainWindow):
         # Кнопка логов — только для администратора
         if self._is_admin():
             self._add_logs_button()
+
+        # Добавляем кнопку "Управление сотрудниками" только для админов
+        if self._is_admin():
+            btn_employees = QPushButton("Управление сотрудниками")
+            btn_employees.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+            btn_employees.setMinimumSize(QtCore.QSize(180, 42))
+            btn_employees.clicked.connect(lambda: self.show_page(self.employees_page_index))
+            
+            # Вставляем перед кнопкой "Выйти"
+            sidebar_layout = self.ui.sidebarFrame.layout()
+            if sidebar_layout:
+                # Находим индекс кнопки "Выйти"
+                exit_btn_index = -1
+                for i in range(sidebar_layout.count()):
+                    item = sidebar_layout.itemAt(i)
+                    if item.widget() and "Выйти" in item.widget().text():
+                        exit_btn_index = i
+                        break
+                
+                if exit_btn_index >= 0:
+                    sidebar_layout.insertWidget(exit_btn_index, btn_employees)
+                else:
+                    sidebar_layout.addWidget(btn_employees)
 
 
     def _is_admin(self) -> bool:
@@ -323,6 +354,7 @@ class MainWindow(QMainWindow):
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        h.setMinimumSectionSize(120)
 
         # Все заказы
         h = self.ui.tableOrders.horizontalHeader()
@@ -1608,3 +1640,18 @@ class MainWindow(QMainWindow):
         self.report_preview_browser.setMinimumHeight(600)
         # Добавляем в layout
         old_layout.addWidget(self.report_preview_browser)
+
+    def _create_employees_page(self):
+        """Создать страницу управления сотрудниками."""
+        from pages.employees_page import EmployeesPage
+        
+        # Создаём страницу
+        self.employees_page = EmployeesPage()
+        
+        # Добавляем напрямую в stackedWidget (без QScrollArea)
+        self.ui.stackedWidget.addWidget(self.employees_page)
+        
+        # Сохраняем индекс страницы
+        self.employees_page_index = self.ui.stackedWidget.indexOf(self.employees_page)
+        
+        print(f"[DEBUG] Страница сотрудников добавлена с индексом: {self.employees_page_index}")
