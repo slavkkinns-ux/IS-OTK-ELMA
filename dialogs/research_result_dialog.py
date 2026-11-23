@@ -1,49 +1,46 @@
 """Диалог просмотра результата исследования."""
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QFormLayout
-)
-from PyQt6.QtCore import Qt
-from db import report_repo
-from datetime import datetime, date
+
+from __future__ import annotations
+
+from typing import Any
+
+from PyQt6.QtWidgets import QFormLayout, QGroupBox, QLabel, QWidget
+
+from db import employee_repo as _default_employee_repo
+from db import report_repo as _default_report_repo
+from services.employee_service import EmployeeService
+from services.report_service import ReportService
+from utils.formatting import format_date
+from widgets.base_dialog import BaseDialog
 
 
-def format_date(value) -> str:
-    if value is None:
-        return ''
-    if isinstance(value, datetime):
-        return value.strftime('%d.%m.%Y')
-    if isinstance(value, date):
-        return value.strftime('%d.%m.%Y')
-    return str(value)
+class ResearchResultDialog(BaseDialog):
+    """Просмотр сохранённого результата исследования."""
 
-
-class ResearchResultDialog(QDialog):
-    """Диалог просмотра результата исследования."""
-
-    def __init__(self, parent, order_service_id: int, research_info: dict = None):
-        super().__init__(parent)
+    def __init__(self, parent: QWidget | None, order_service_id: int,
+                 research_info: dict[str, Any] | None = None,
+                 report_service: ReportService | None = None,
+                 employee_service: EmployeeService | None = None) -> None:
+        super().__init__(parent, title="Результат исследования", min_width=500)
+        # order_repo для этого диалога не нужен
+        self.report_service = report_service or ReportService(_default_report_repo, None)
+        self.employee_service = employee_service or EmployeeService(_default_employee_repo)
         self.order_service_id = order_service_id
         self.research_info = research_info or {}
-        self.setWindowTitle("Результат исследования")
-        self.setMinimumWidth(500)
         self._build_ui()
         self._load_data()
 
-    def _build_ui(self):
-        root = QVBoxLayout(self)
-
-        # Блок информации об исследовании
+    def _build_ui(self) -> None:
         if self.research_info:
             info_box = QGroupBox("Информация об исследовании")
             info_lay = QFormLayout(info_box)
-            info_lay.addRow("Заказ:", QLabel(str(self.research_info.get('order_id', ''))))
-            info_lay.addRow("Код сосуда:", QLabel(str(self.research_info.get('vessel_code', ''))))
-            info_lay.addRow("Клиент:", QLabel(self.research_info.get('client_name', '')))
-            info_lay.addRow("Услуга:", QLabel(self.research_info.get('service_name', '')))
-            root.addWidget(info_box)
+            info = self.research_info
+            info_lay.addRow("Заказ:", QLabel(str(info.get("order_id", ""))))
+            info_lay.addRow("Код сосуда:", QLabel(str(info.get("vessel_code", ""))))
+            info_lay.addRow("Клиент:", QLabel(info.get("client_name", "")))
+            info_lay.addRow("Услуга:", QLabel(info.get("service_name", "")))
+            self.root.addWidget(info_box)
 
-        # Блок результата
         result_box = QGroupBox("Результат исследования")
         result_lay = QFormLayout(result_box)
 
@@ -62,35 +59,25 @@ class ResearchResultDialog(QDialog):
         self.lblEmployee = QLabel()
         result_lay.addRow("Сотрудник:", self.lblEmployee)
 
-        root.addWidget(result_box)
+        self.root.addWidget(result_box)
+        self.add_close_button()
 
-        # Кнопки
-        btns = QHBoxLayout()
-        btn_close = QPushButton("Закрыть")
-        btn_close.clicked.connect(self.accept)
-        btn_close.setMinimumWidth(100)
-        btns.addStretch()
-        btns.addWidget(btn_close)
-        root.addLayout(btns)
-
-    def _load_data(self):
-        result = report_repo.get_research_result(self.order_service_id)
+    def _load_data(self) -> None:
+        result = self.report_service.get_research_result(self.order_service_id)
         if not result:
             self.lblResultValue.setText("Результат ещё не сохранён.")
-            self.lblConclusion.setText('')
-            self.lblResultDate.setText('')
-            self.lblEmployee.setText('')
             return
 
-        self.lblResultValue.setText(str(result.get('result_value', '') or 'Не указан'))
-        self.lblConclusion.setText(str(result.get('conclusion', '') or 'Не указано'))
-        self.lblResultDate.setText(format_date(result.get('result_date')))
+        self.lblResultValue.setText(str(result.get("result_value") or "Не указан"))
+        self.lblConclusion.setText(str(result.get("conclusion") or "Не указано"))
+        self.lblResultDate.setText(format_date(result.get("result_date")))
 
-        # Если есть employee_id — можно показать имя сотрудника
-        employee_id = result.get('employee_id')
-        if employee_id:
-            employees = report_repo.get_all_employees()
-            emp = next((e for e in employees if e['employee_id'] == employee_id), None)
-            self.lblEmployee.setText(emp['full_name'] if emp else f"ID: {employee_id}")
-        else:
-            self.lblEmployee.setText('Не указан')
+        employee_id = result.get("employee_id")
+        if not employee_id:
+            self.lblEmployee.setText("Не указан")
+            return
+        employee = self.employee_service.get_employee_by_id(int(employee_id))
+        self.lblEmployee.setText(employee["full_name"] if employee else f"ID: {employee_id}")
+
+
+__all__ = ["ResearchResultDialog"]

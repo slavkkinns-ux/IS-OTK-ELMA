@@ -1,26 +1,33 @@
 """Диалог подключения к БД с автопроверкой структуры."""
+
+from __future__ import annotations
+
+import logging
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QProgressBar
 )
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QObject
-from db.connection import is_db_available, connect, get_config_info, ensure_schema
+from services.connection_service import ConnectionService
+
+logger = logging.getLogger(__name__)
 
 
 class _Worker(QObject):
     """Фоновая проверка доступности БД."""
     finished = pyqtSignal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, connection_service: ConnectionService, parent=None):
         super().__init__(parent)
+        self.connection_service = connection_service
 
     def check(self):
-        result = is_db_available()
+        result = self.connection_service.is_db_available()
         self.finished.emit(result)
 
 
 class ConnectionDialog(QDialog):
-    """Диалог подключения к БД с автоповтором."""
+    """Диалог подключения к базе данных с автоповтором."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,6 +36,8 @@ class ConnectionDialog(QDialog):
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint
         )
+
+        self.connection_service = ConnectionService()
 
         self._attempt = 0
         self._max_attempts = 5
@@ -46,7 +55,7 @@ class ConnectionDialog(QDialog):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(title)
 
-        self.lblConfig = QLabel(f"Параметры: {get_config_info()}")
+        self.lblConfig = QLabel(f"Параметры: {self.connection_service.get_config_info()}")
         self.lblConfig.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lblConfig.setStyleSheet("color: #666; font-size: 9pt;")
         root.addWidget(self.lblConfig)
@@ -89,7 +98,7 @@ class ConnectionDialog(QDialog):
         self.btnSettings.setEnabled(False)
 
         self._thread = QThread(self)
-        self._worker = _Worker()
+        self._worker = _Worker(self.connection_service)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.check)
         self._worker.finished.connect(self._on_check_finished)
@@ -100,21 +109,19 @@ class ConnectionDialog(QDialog):
         """Обработка результата проверки."""
         if available:
             try:
-                connect()
+                self.connection_service.connect()
                 self.lblStatus.setText("Подключение установлено.\nПроверка и миграция БД...")
                 self.progress.setValue(self._max_attempts)
 
                 try:
-                    schema_info = ensure_schema()
-                    # Логируем результат миграции (для отладки)
-                    print(f"[DB Migration] {schema_info}")
+                    schema_info = self.connection_service.ensure_schema()
+                    logger.info("DB Migration: %s", schema_info)
                 except Exception as e:
                     self.lblStatus.setText(f"Ошибка при миграции БД:\n{e}")
                     self.btnRetry.setEnabled(True)
                     self.btnSettings.setEnabled(True)
                     return
 
-                # Тихое завершение
                 QTimer.singleShot(400, self.accept)
             except Exception as e:
                 self._show_error(f"Ошибка подключения:\n{e}\n\nПроверьте параметры в config.py")
@@ -158,3 +165,6 @@ class ConnectionDialog(QDialog):
             self._thread.quit()
             self._thread.wait(2000)
         event.accept()
+
+
+__all__ = ["ConnectionDialog"]

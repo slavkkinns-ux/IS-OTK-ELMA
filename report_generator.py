@@ -10,7 +10,10 @@ from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from db import order_repo, report_repo
+from services.order_service import OrderService
+from services.report_service import ReportService
+from db import order_repo as _default_order_repo
+from db import report_repo as _default_report_repo
 
 # =============================================================================
 # Регистрация кириллического шрифта
@@ -69,13 +72,24 @@ if not _font_available(FONT_NAME):
 # =============================================================================
 # Генерация PDF
 # =============================================================================
-def generate_report_pdf(order_id: int, report_id: int = None) -> str:
+def generate_report_pdf(
+    order_id: int,
+    report_id: int = None,
+    order_service: OrderService | None = None,
+    report_service: ReportService | None = None,
+) -> str:
     """Сгенерировать PDF отчёта.
 
     Args:
         order_id: ID заказа
         report_id: ID отчёта (для имени файла). Если None, используется order_id.
+        order_service: Сервис заказов (DI).
+        report_service: Сервис отчётов (DI).
     """
+    # Dependency Injection
+    order_service = order_service or OrderService(_default_order_repo, None, None)
+    report_service = report_service or ReportService(_default_report_repo, _default_order_repo)
+
     # Путь к папке reports
     reports_dir = Path(__file__).parent / 'reports'
     reports_dir.mkdir(exist_ok=True)
@@ -89,12 +103,12 @@ def generate_report_pdf(order_id: int, report_id: int = None) -> str:
     filepath = str(reports_dir / filename)
 
     # Получаем данные заказа
-    order = order_repo.get_order(order_id)
+    order = order_service.get_order(order_id)
     if not order:
         raise ValueError(f"Заказ {order_id} не найден")
 
     # Получаем исследования по заказу
-    research_rows = report_repo.get_report_research(order_id)
+    research_rows = report_service.get_report_research(order_id)
 
     # Создаём PDF
     c = canvas.Canvas(filepath, pagesize=A4)

@@ -1,263 +1,194 @@
 """Диалог предварительного просмотра отчёта."""
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QFormLayout, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QMessageBox
-)
-from PyQt6.QtCore import Qt
-from db import order_repo, report_repo
-from datetime import datetime, date
+
+from __future__ import annotations
+
 import os
-import sys
+from datetime import datetime
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QAbstractItemView, QFormLayout, QGroupBox, QHBoxLayout, QHeaderView,
+    QLabel, QPushButton, QTableWidget, QVBoxLayout, QWidget,
+)
+
+from db import order_repo as _default_order_repo
+from db import report_repo as _default_report_repo
+from services.order_service import OrderService
+from services.report_service import ReportService
+from session import Session
+from utils.formatting import format_date
+from widgets.base_dialog import BaseDialog
+from widgets.base_table import make_item
+from widgets.styles import GROUPBOX_TITLED_STYLE, HINT_STYLE, TABLE_STYLE
 
 
-def format_date(value) -> str:
-    if value is None:
-        return ''
-    if isinstance(value, datetime):
-        return value.strftime('%d.%m.%Y')
-    if isinstance(value, date):
-        return value.strftime('%d.%m.%Y')
-    return str(value)
+class ReportPreviewDialog(BaseDialog):
+    """Предварительный просмотр отчёта по заказу с созданием, открытием и печатью PDF."""
 
-
-class ReportPreviewDialog(QDialog):
-    """Диалог предварительного просмотра отчёта."""
-
-    def __init__(self, parent, order_id: int):
-        super().__init__(parent)
+    def __init__(self, parent: QWidget | None, order_id: int,
+                 order_service: OrderService | None = None,
+                 report_service: ReportService | None = None) -> None:
+        super().__init__(parent, title="Предварительный просмотр отчёта",
+                         min_width=700, min_height=600)
+        self.order_service = order_service or OrderService(_default_order_repo, None, None)
+        self.report_service = report_service or ReportService(
+            _default_report_repo, _default_order_repo
+        )
         self.order_id = order_id
-        self.report_id = None
-        self.file_path = None
-        self.setWindowTitle("Предварительный просмотр отчёта")
-        self.setMinimumWidth(700)
-        self.setMinimumHeight(600)
+        self.report_id: int | None = None
+        self.file_path: str | None = None
         self._build_ui()
         self._load_data()
 
-    def _build_ui(self):
-        root = QVBoxLayout(self)
-
-        # Заголовок
+    def _build_ui(self) -> None:
         title = QLabel("ОТЧЁТ ПО ЗАКАЗУ")
-        title.setStyleSheet("""
-            font-size: 18pt;
-            font-weight: bold;
-            color: #174A7E;
-            padding: 10px;
-        """)
+        title.setStyleSheet("font-size: 18pt; font-weight: bold; color: #174A7E; padding: 10px;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        root.addWidget(title)
+        self.root.addWidget(title)
 
-        # Информация о заказе
         info_box = QGroupBox("Информация о заказе")
-        info_box.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 11pt;
-                border: 1px solid #CBD7E4;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
+        info_box.setStyleSheet(GROUPBOX_TITLED_STYLE)
         info_lay = QFormLayout(info_box)
         info_lay.setSpacing(8)
-
         self.lblOrderId = QLabel()
         self.lblVesselCode = QLabel()
         self.lblClient = QLabel()
         self.lblEmployee = QLabel()
         self.lblDate = QLabel()
         self.lblStatus = QLabel()
-
-        for label in [self.lblOrderId, self.lblVesselCode, self.lblClient,
-                      self.lblEmployee, self.lblDate, self.lblStatus]:
+        for caption, label in (
+            ("Номер заказа:", self.lblOrderId),
+            ("Код сосуда:", self.lblVesselCode),
+            ("Клиент:", self.lblClient),
+            ("Сотрудник:", self.lblEmployee),
+            ("Дата:", self.lblDate),
+            ("Статус:", self.lblStatus),
+        ):
             label.setStyleSheet("font-size: 10pt;")
+            info_lay.addRow(caption, label)
+        self.root.addWidget(info_box)
 
-        info_lay.addRow("Номер заказа:", self.lblOrderId)
-        info_lay.addRow("Код сосуда:", self.lblVesselCode)
-        info_lay.addRow("Клиент:", self.lblClient)
-        info_lay.addRow("Сотрудник:", self.lblEmployee)
-        info_lay.addRow("Дата:", self.lblDate)
-        info_lay.addRow("Статус:", self.lblStatus)
-
-        root.addWidget(info_box)
-
-        # Таблица услуг
         services_box = QGroupBox("Выполненные исследования")
-        services_box.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 11pt;
-                border: 1px solid #CBD7E4;
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
+        services_box.setStyleSheet(GROUPBOX_TITLED_STYLE)
         services_lay = QVBoxLayout(services_box)
-
         self.tableServices = QTableWidget()
         self.tableServices.setColumnCount(3)
         self.tableServices.setHorizontalHeaderLabels(["№", "Услуга", "Стоимость"])
         self.tableServices.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tableServices.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.tableServices.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.tableServices.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.tableServices.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.tableServices.verticalHeader().setVisible(False)
-
-        self.tableServices.setStyleSheet("""
-            QHeaderView::section {
-                background-color: #174A7E;
-                color: white;
-                font-weight: bold;
-                padding: 5px;
-                border: 1px solid #CBD7E4;
-            }
-            QTableWidget {
-                border: 1px solid #CBD7E4;
-                gridline-color: #CBD7E4;
-            }
-        """)
-
+        header = self.tableServices.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.tableServices.setStyleSheet(TABLE_STYLE)
         services_lay.addWidget(self.tableServices)
-        root.addWidget(services_box)
+        self.root.addWidget(services_box)
 
-        # Итого
         total_lay = QHBoxLayout()
         total_lay.addWidget(QLabel("ИТОГО:"))
         self.lblTotal = QLabel("0.00 ₽")
-        self.lblTotal.setStyleSheet("""
-            font-size: 12pt;
-            font-weight: bold;
-            color: #174A7E;
-            padding: 5px;
-        """)
+        self.lblTotal.setStyleSheet(
+            "font-size: 12pt; font-weight: bold; color: #174A7E; padding: 5px;"
+        )
         total_lay.addWidget(self.lblTotal)
         total_lay.addStretch()
-        root.addLayout(total_lay)
+        self.root.addLayout(total_lay)
 
-        # Подпись
         self.lblFooter = QLabel()
-        self.lblFooter.setStyleSheet("font-size: 9pt; color: #666; padding: 10px;")
+        self.lblFooter.setStyleSheet(HINT_STYLE + " padding: 10px;")
         self.lblFooter.setAlignment(Qt.AlignmentFlag.AlignRight)
-        root.addWidget(self.lblFooter)
+        self.root.addWidget(self.lblFooter)
 
-        # Кнопки
         btns = QHBoxLayout()
-        btn_create = QPushButton("Создать PDF")
-        btn_create.clicked.connect(self._create_pdf)
-        btn_open = QPushButton("Открыть PDF")
-        btn_open.clicked.connect(self._open_pdf)
-        btn_print = QPushButton("Печать")
-        btn_print.clicked.connect(self._print_pdf)
+        for text, handler in (
+            ("Создать PDF", self._create_pdf),
+            ("Открыть PDF", self._open_pdf),
+            ("Печать", self._print_pdf),
+        ):
+            btn = QPushButton(text)
+            btn.clicked.connect(handler)
+            btns.addWidget(btn)
+        btns.addStretch()
         btn_close = QPushButton("Закрыть")
         btn_close.clicked.connect(self.reject)
-        
-        btns.addWidget(btn_create)
-        btns.addWidget(btn_open)
-        btns.addWidget(btn_print)
-        btns.addStretch()
         btns.addWidget(btn_close)
-        root.addLayout(btns)
+        self.root.addLayout(btns)
 
-    def _load_data(self):
-        """Загрузить данные заказа и отобразить в диалоге."""
-        order = order_repo.get_order(self.order_id)
+    def _load_data(self) -> None:
+        order = self.order_service.get_order(self.order_id)
         if not order:
-            QMessageBox.warning(self, "Ошибка", "Заказ не найден.")
+            self.warn("Ошибка", "Заказ не найден.")
             return
 
-        self.lblOrderId.setText(str(order['order_id']))
-        self.lblVesselCode.setText(order['vessel_code'])
-        self.lblClient.setText(order['client_name'] or '')
-        self.lblEmployee.setText(order['employee_name'] or '')
-        self.lblDate.setText(format_date(order.get('order_date')))
-        self.lblStatus.setText(order['status'] or '')
+        self.lblOrderId.setText(str(order["order_id"]))
+        self.lblVesselCode.setText(order["vessel_code"])
+        self.lblClient.setText(order["client_name"] or "")
+        self.lblEmployee.setText(order["employee_name"] or "")
+        self.lblDate.setText(format_date(order.get("order_date")))
+        self.lblStatus.setText(order["status"] or "")
 
-        # Загрузка услуг
-        services = order_repo.get_order_services(self.order_id)
+        services = self.order_service.get_order_services(self.order_id)
         self.tableServices.setRowCount(len(services))
         total = 0.0
-
         for row_idx, s in enumerate(services):
-            item_num = QTableWidgetItem(str(row_idx + 1))
-            item_num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.tableServices.setItem(row_idx, 0, item_num)
-
-            item_service = QTableWidgetItem(s['service_name'])
-            self.tableServices.setItem(row_idx, 1, item_service)
-
-            price = float(s['price'])
+            price = float(s["price"])
             total += price
-            item_price = QTableWidgetItem(f"{price:.2f} ₽")
-            item_price.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            self.tableServices.setItem(row_idx, 2, item_price)
+            self.tableServices.setItem(row_idx, 0, make_item(row_idx + 1, center=True))
+            self.tableServices.setItem(row_idx, 1, make_item(s["service_name"]))
+            self.tableServices.setItem(row_idx, 2, make_item(f"{price:.2f} ₽", align_right=True))
 
         self.lblTotal.setText(f"{total:.2f} ₽")
         self.lblFooter.setText(f"Отчёт сформирован: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
-    def _create_pdf(self):
-        """Создать PDF из текущего просмотра."""
+    def _create_pdf(self) -> None:
+        """Создать запись отчёта, сгенерировать PDF и сохранить путь к нему.
+
+        Порядок такой же, как в главном окне: имя файла строится по report_id.
+        """
         try:
             from report_generator import generate_report_pdf
-            from session import Session
 
-            employee_id = Session.get_user_id()
-            self.file_path = generate_report_pdf(self.order_id)
-
-            # Сохраняем в БД
-            self.report_id = report_repo.create_report(self.order_id, employee_id, self.file_path)
-
-            QMessageBox.information(
-                self, "Отчёт создан",
-                f"Отчёт ОТЧ-{self.report_id:04d} успешно создан.\nФайл: {self.file_path}"
+            report_id = self.report_service.create_report(
+                self.order_id, Session.get_user_id(), None
             )
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось создать отчёт:\n{e}")
+            file_path = generate_report_pdf(
+                self.order_id, report_id,
+                order_service=self.order_service,
+                report_service=self.report_service,
+            )
+            self.report_service.update_report_path(report_id, file_path)
+            self.report_id, self.file_path = report_id, file_path
 
-    def _open_pdf(self):
-        """Открыть созданный PDF."""
-        if not self.file_path or not os.path.exists(self.file_path):
-            QMessageBox.warning(self, "Ошибка", "PDF ещё не создан. Нажмите 'Создать PDF'.")
+            self.info(
+                "Отчёт создан",
+                f"Отчёт ОТЧ-{report_id:04d} успешно создан.\nФайл: {file_path}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.fail("Ошибка", f"Не удалось создать отчёт:\n{exc}")
+
+    def _has_pdf(self) -> bool:
+        if self.file_path and os.path.exists(self.file_path):
+            return True
+        self.warn("Ошибка", "PDF ещё не создан. Нажмите 'Создать PDF'.")
+        return False
+
+    def _open_pdf(self) -> None:
+        if not self._has_pdf():
             return
-
         try:
-            if sys.platform == 'win32':
-                os.startfile(self.file_path)
-            elif sys.platform == 'darwin':
-                import subprocess
-                subprocess.Popen(['open', self.file_path])
-            else:
-                import subprocess
-                subprocess.Popen(['xdg-open', self.file_path])
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл:\n{e}")
+            self.report_service.open_file(self.file_path)
+        except Exception as exc:  # noqa: BLE001
+            self.fail("Ошибка", f"Не удалось открыть файл:\n{exc}")
 
-    def _print_pdf(self):
-        """Отправить PDF на печать."""
-        if not self.file_path or not os.path.exists(self.file_path):
-            QMessageBox.warning(self, "Ошибка", "PDF ещё не создан. Нажмите 'Создать PDF'.")
+    def _print_pdf(self) -> None:
+        if not self._has_pdf():
             return
-
         try:
-            import subprocess
-            if sys.platform == 'win32':
-                os.startfile(self.file_path, 'print')
-            else:
-                subprocess.Popen(['lp', self.file_path])
-            QMessageBox.information(self, "Печать", "Отчёт отправлен на печать.")
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось отправить на печать:\n{e}")
+            self.report_service.print_file(self.file_path)
+            self.info("Печать", "Отчёт отправлен на печать.")
+        except Exception as exc:  # noqa: BLE001
+            self.fail("Ошибка", f"Не удалось отправить на печать:\n{exc}")
+
+
+__all__ = ["ReportPreviewDialog"]

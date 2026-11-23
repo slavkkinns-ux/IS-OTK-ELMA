@@ -1,27 +1,38 @@
-from PyQt6.QtWidgets import QMainWindow, QHeaderView, QMessageBox, QTableWidgetItem
+"""Окно личного кабинета клиента."""
+
+from __future__ import annotations
+
+from PyQt6.QtWidgets import QMainWindow, QHeaderView, QMessageBox
 from PyQt6.QtCore import Qt
 
-from db.client_repo import get_client_by_id
+from services.client_service import ClientService
+from widgets.base_table import make_item, populate_table
 from ui.client_window_ui import Ui_ClientsWindow
 from session import Session
-from db import client_repo
+from utils.files import open_file
+from db import client_repo as _default_client_repo
 import os
-import sys
+
 
 class ClientWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, client_service: ClientService | None = None):
         super().__init__()
         self.ui = Ui_ClientsWindow()
         self.ui.setupUi(self)
 
-        self._apply_style()  # Применяем единый стиль как в main_window
+        # Dependency Injection
+        self.client_service = client_service or ClientService(_default_client_repo)
+
+        self._apply_style()
 
         self.user = Session.get_user()
         if not self.user:
             self.close()
             return
 
-        self.setWindowTitle(f"Личный кабинет клиента - СПбЦ ЭЛМА | {self.user.get('display_name', 'Клиент')}")
+        self.setWindowTitle(
+            f"Личный кабинет клиента - СПбЦ ЭЛМА | {self.user.get('display_name', 'Клиент')}"
+        )
 
         self._setup_navigation()
         self._setup_tables()
@@ -143,7 +154,6 @@ class ClientWindow(QMainWindow):
                 font-weight: bold;
             }
         """)
-        # Убираем инлайн-стили, заданные в UI файле
         self.ui.statsCard2.setStyleSheet("")
         self.ui.statsCard3.setStyleSheet("")
         self.ui.notificationsFrame.setStyleSheet("")
@@ -181,71 +191,73 @@ class ClientWindow(QMainWindow):
         self._load_profile()
 
     def _load_home_stats(self):
-        stats = client_repo.get_client_stats(Session.get_user_id())
+        user_id = Session.get_user_id()
+        stats = self.client_service.get_client_stats(user_id) if user_id else {}
         if stats:
             self.ui.statValue.setText(str(stats.get('total_orders', 0)))
             self.ui.statValue1.setText(str(stats.get('active_orders', 0)))
             self.ui.statValue2.setText(str(stats.get('completed_orders', 0)))
 
     def _load_home_orders(self):
-        orders = client_repo.get_client_orders(Session.get_user_id(), limit=5)
-        self.ui.tableHomeOrders.setRowCount(len(orders))
-        for row_idx, order in enumerate(orders):
-            self.ui.tableHomeOrders.setItem(row_idx, 0, QTableWidgetItem(str(order.get('vessel_code', ''))))
-            self.ui.tableHomeOrders.setItem(row_idx, 1, QTableWidgetItem(str(order.get('order_date', ''))))
-            self.ui.tableHomeOrders.setItem(row_idx, 2, QTableWidgetItem(str(order.get('services_count', 0))))
-            item = QTableWidgetItem(str(order.get('status', '')))
-            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableHomeOrders.setItem(row_idx, 3, item)
+        user_id = Session.get_user_id()
+        orders = self.client_service.get_client_orders(user_id, limit=5) if user_id else []
+
+        def fill_row(table, row_idx, order):
+            table.setItem(row_idx, 0, make_item(order.get('vessel_code')))
+            table.setItem(row_idx, 1, make_item(order.get('order_date')))
+            table.setItem(row_idx, 2, make_item(order.get('services_count', 0)))
+            table.setItem(row_idx, 3, make_item(order.get('status'), center=True))
+
+        populate_table(self.ui.tableHomeOrders, orders, fill_row, sorting=False)
 
     def _load_my_orders(self):
-        orders = client_repo.get_client_orders(Session.get_user_id())
-        self.ui.tableMyOrders.setRowCount(len(orders))
-        for row_idx, order in enumerate(orders):
-            self.ui.tableMyOrders.setItem(row_idx, 0, QTableWidgetItem(str(order.get('vessel_code', ''))))
-            self.ui.tableMyOrders.setItem(row_idx, 1, QTableWidgetItem(str(order.get('order_date', ''))))
-            self.ui.tableMyOrders.setItem(row_idx, 2, QTableWidgetItem(str(order.get('vessel_code', ''))))
-            self.ui.tableMyOrders.setItem(row_idx, 3, QTableWidgetItem(str(order.get('services_list', ''))))
-            self.ui.tableMyOrders.setItem(row_idx, 4, QTableWidgetItem(str(order.get('total_price', 0))))
-            item = QTableWidgetItem(str(order.get('status', '')))
-            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableMyOrders.setItem(row_idx, 5, item)
+        user_id = Session.get_user_id()
+        orders = self.client_service.get_client_orders(user_id) if user_id else []
+
+        def fill_row(table, row_idx, order):
+            table.setItem(row_idx, 0, make_item(order.get('vessel_code')))
+            table.setItem(row_idx, 1, make_item(order.get('order_date')))
+            table.setItem(row_idx, 2, make_item(order.get('vessel_code')))
+            table.setItem(row_idx, 3, make_item(order.get('services_list')))
+            table.setItem(row_idx, 4, make_item(order.get('total_price', 0)))
+            table.setItem(row_idx, 5, make_item(order.get('status'), center=True))
+
+        populate_table(self.ui.tableMyOrders, orders, fill_row, sorting=False)
 
     def _load_results(self):
-        results = client_repo.get_client_results(Session.get_user_id())
-        self.ui.tableResults.setRowCount(len(results))
-        for row_idx, res in enumerate(results):
-            self.ui.tableResults.setItem(row_idx, 0, QTableWidgetItem(str(res.get('vessel_code', ''))))
-            self.ui.tableResults.setItem(row_idx, 1, QTableWidgetItem(str(res.get('service_name', ''))))
-            self.ui.tableResults.setItem(row_idx, 2, QTableWidgetItem(str(res.get('result_date', ''))))
-            self.ui.tableResults.setItem(row_idx, 3, QTableWidgetItem(str(res.get('result_value', ''))))
-            self.ui.tableResults.setItem(row_idx, 4, QTableWidgetItem(str(res.get('conclusion', ''))))
-            self.ui.tableResults.setItem(row_idx, 5, QTableWidgetItem(str(res.get('employee_name', ''))))
+        user_id = Session.get_user_id()
+        results = self.client_service.get_client_results(user_id) if user_id else []
+
+        def fill_row(table, row_idx, res):
+            for col, key in enumerate((
+                'vessel_code', 'service_name', 'result_date',
+                'result_value', 'conclusion', 'employee_name',
+            )):
+                table.setItem(row_idx, col, make_item(res.get(key)))
+
+        populate_table(self.ui.tableResults, results, fill_row, sorting=False)
 
     def _load_documents(self):
-        reports = client_repo.get_client_reports(Session.get_user_id())
-        # Фильтруем только отчёты, у которых есть файл на диске
-        valid_reports = []
-        for rep in reports:
-            file_path = rep.get('file_path', '')
-            if file_path and os.path.exists(file_path):
-                valid_reports.append(rep)
-        
-        self.ui.tableDocuments.setRowCount(len(valid_reports))
-        for row_idx, rep in enumerate(valid_reports):
-            report_id = rep.get('report_id', 0)
-            file_path = rep.get('file_path', '')
-            
-            item_doc = QTableWidgetItem(f"ОТЧ-{report_id:04d}")
-            item_doc.setData(Qt.ItemDataRole.UserRole, file_path)
-            self.ui.tableDocuments.setItem(row_idx, 0, item_doc)
-            
-            self.ui.tableDocuments.setItem(row_idx, 1, QTableWidgetItem("Отчёт"))
-            self.ui.tableDocuments.setItem(row_idx, 2, QTableWidgetItem(str(rep.get('vessel_code', ''))))
-            self.ui.tableDocuments.setItem(row_idx, 3, QTableWidgetItem(str(rep.get('report_date', ''))))
+        user_id = Session.get_user_id()
+        reports = self.client_service.get_client_reports(user_id) if user_id else []
+        # Показываем только отчёты, файлы которых есть на диске
+        valid_reports = [
+            rep for rep in reports
+            if rep.get('file_path') and os.path.exists(rep['file_path'])
+        ]
+
+        def fill_row(table, row_idx, rep):
+            table.setItem(row_idx, 0, make_item(
+                f"ОТЧ-{rep.get('report_id', 0):04d}", user_data=rep['file_path']))
+            table.setItem(row_idx, 1, make_item("Отчёт"))
+            table.setItem(row_idx, 2, make_item(rep.get('vessel_code')))
+            table.setItem(row_idx, 3, make_item(rep.get('report_date')))
+
+        populate_table(self.ui.tableDocuments, valid_reports, fill_row, sorting=False)
 
     def _load_profile(self):
-        info = client_repo.get_client_info(Session.get_user_id())
+        user_id = Session.get_user_id()
+        info = self.client_service.get_client_by_id(user_id) if user_id else None
         if info:
             self.ui.lblProfileName.setText(info.get('name', 'Не указано'))
             self.ui.lblProfileContact.setText(info.get('contact_person', 'Не указано'))
@@ -266,23 +278,20 @@ class ClientWindow(QMainWindow):
 
         file_path = item.data(Qt.ItemDataRole.UserRole)
         if not file_path or not os.path.exists(file_path):
-            QMessageBox.warning(self, "Открытие документа", 
+            QMessageBox.warning(self, "Открытие документа",
                                 "Файл документа не найден на диске.")
             return
 
         try:
-            if sys.platform == 'win32':
-                os.startfile(file_path)
-            elif sys.platform == 'darwin':
-                import subprocess
-                subprocess.Popen(['open', file_path])
-            else:
-                import subprocess
-                subprocess.Popen(['xdg-open', file_path])
+            open_file(file_path)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл:\n{e}")
 
     def _logout(self):
-        if QMessageBox.question(self, "Выход", "Выйти из личного кабинета?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
+        if QMessageBox.question(self, "Выход", "Выйти из личного кабинета?",
+                                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
             Session.clear()
             self.close()
+
+
+__all__ = ["ClientWindow"]

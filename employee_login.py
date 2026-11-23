@@ -1,13 +1,19 @@
 """Диалог входа для сотрудников."""
+
+from __future__ import annotations
+
+import logging
 import os
-import hashlib
 from PyQt6.QtWidgets import QDialog, QLineEdit, QCheckBox, QPushButton
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from ui.login_employee_ui import Ui_EmployeeLoginDialog
-from session import Session, Role
-from db import connection
+from session import Session
+from services.employee_service import EmployeeService
+from db import employee_repo as _default_employee_repo
+
+logger = logging.getLogger(__name__)
 
 
 def _get_logo_path(filename: str) -> str:
@@ -19,7 +25,7 @@ def _render_svg(filename: str, size: int = 20) -> QIcon:
     """Рендерит SVG через QSvgRenderer."""
     path = _get_logo_path(filename)
     if not os.path.exists(path):
-        print(f"[WARN] Иконка не найдена: {path}")
+        logger.warning("Иконка не найдена: %s", path)
         return QIcon()
     renderer = QSvgRenderer(path)
     pixmap = QPixmap(size, size)
@@ -35,6 +41,9 @@ class EmployeeLoginDialog(QDialog):
         super().__init__()
         self.ui = Ui_EmployeeLoginDialog()
         self.ui.setupUi(self)
+
+        # Dependency Injection
+        self.employee_service = EmployeeService(_default_employee_repo)
 
         self.ui.lblError.setText("")
         self.ui.lblError.hide()
@@ -70,7 +79,7 @@ class EmployeeLoginDialog(QDialog):
         """Настраивает кнопку показа пароля — иконка глаза."""
         btn = self.findChild(QPushButton, "btnTogglePassword")
         if not btn:
-            print("[WARN] btnTogglePassword не найден в UI")
+            logger.warning("btnTogglePassword не найден в UI")
             return
 
         self.btnTogglePassword = btn
@@ -125,16 +134,7 @@ class EmployeeLoginDialog(QDialog):
             return
 
         try:
-            conn = connection.get_connection()
-            password_hash = hashlib.sha256(password.encode()).hexdigest()
-
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT employee_id, full_name, login, role
-                    FROM employees
-                    WHERE login = %s AND password_hash = %s AND is_active = 1
-                """, (email, password_hash))
-                user = cur.fetchone()
+            user = self.employee_service.authenticate_employee(email, password)
 
             if user:
                 Session.set_user(
@@ -149,6 +149,9 @@ class EmployeeLoginDialog(QDialog):
                 return
 
             self.show_error("Неверная почта или пароль")
-        except Exception as e:
+        except Exception as exc:
+            logger.error("Ошибка входа сотрудника: %s", exc)
             self.show_error("Ошибка подключения к БД")
-            print(e)
+
+
+__all__ = ["EmployeeLoginDialog"]

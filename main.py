@@ -9,8 +9,8 @@ from employee_login import EmployeeLoginDialog
 from client_login import ClientLoginDialog
 from dialogs.connection_dialog import ConnectionDialog  # <-- диалог подключения к БД
 from session import Session
-from datetime import datetime, date
 from logger import app_logger
+from error_handling import install_excepthook
 
 THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
 
@@ -27,18 +27,10 @@ def load_theme(app, theme_name="light"):
         pass
 
 
-def format_date(value) -> str:
-    """Безопасно форматирует дату/дата-время в строку вида ДД.ММ.ГГГГ."""
-    if value is None:
-        return ''
-    if isinstance(value, datetime):
-        return value.strftime('%d.%m.%Y')
-    if isinstance(value, date):
-        return value.strftime('%d.%m.%Y')
-    return str(value)
-
-
 def run_app():
+    # Установить глобальный обработчик исключений
+    install_excepthook()
+
     app_logger.info("=" * 60)
     app_logger.info("Приложение ИС ОТК запускается")
     app_logger.info("=" * 60)

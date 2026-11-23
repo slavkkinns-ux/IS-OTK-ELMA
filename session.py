@@ -1,8 +1,11 @@
 """Управление сессией пользователя."""
+import logging
 import os
 import json
 
 SESSION_FILE = "session.json"
+
+logger = logging.getLogger(__name__)
 
 
 class Role:
@@ -149,8 +152,8 @@ class Session:
         try:
             with open(SESSION_FILE, 'w', encoding='utf-8') as f:
                 json.dump(cls._current_user, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"Ошибка сохранения сессии: {e}")
+        except Exception as exc:
+            logger.error("Ошибка сохранения сессии: %s", exc)
 
     @classmethod
     def _load_from_file(cls):

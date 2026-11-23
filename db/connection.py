@@ -181,7 +181,7 @@ def ensure_columns() -> list[str]:
                             actions.append(f"✗ {table}.{col_name}: {e}")
 
             conn.commit()
-    except Exception as e:
+    except Exception:
         conn.rollback()
         raise
 
@@ -256,7 +256,7 @@ def ensure_schema() -> str:
                 conn.commit()
                 admin_status = "\n✓ Пароль администратора обновлён"
 
-    except Exception as e:
+    except Exception:
         conn.rollback()
         raise
 

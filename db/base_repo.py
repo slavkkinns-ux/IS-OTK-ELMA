@@ -1,46 +1,39 @@
-"""Базовые функции для работы с базой данных.
-Используется в модулях авторизации и других местах, где нужны низкоуровневые запросы.
+"""Базовые функции для работы с базой данных (обратная совместимость).
+
+Все функции делегируют вызовы экземпляру DatabaseConnection и репозиториям.
+Используется в модулях'autorзации и других местах, где нужны низкоуровневые запросы.
 """
-from db.connection import get_connection as _db_get_connection
+
+from __future__ import annotations
+
+from typing import Any
+
+from db.database import db
 
 
 def connect():
-    """Открывает соединение с базой данных."""
-    return _db_get_connection()
+    """Открыть соединение с базой данных."""
+    return db.connect()
 
 
 def get_connection():
-    """Возвращает активное соединение."""
-    return _db_get_connection()
+    """Вернуть активное соединение."""
+    return db.get_connection()
 
 
-def execute_query(query: str, params=None) -> list[dict]:
-    """Выполняет SQL-запрос (SELECT) и возвращает список словарей."""
-    conn = _db_get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query, params or ())
-            return cur.fetchall()
-    finally:
-        conn.close()
+def execute_query(query: str, params=None) -> list[dict[str, Any]]:
+    """Выполнить SQL-запрос (SELECT) и вернуть список словарей."""
+    return db.execute_query(query, params or ())
 
 
 def execute_insert(query: str, params=None) -> int:
-    """Выполняет INSERT и возвращает ID новой строки."""
-    conn = _db_get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query, params or ())
-            conn.commit()
-            return cur.lastrowid
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    """Выполнить INSERT и вернуть ID новой строки."""
+    return db.execute_insert(query, params or ())
 
 
 def close():
-    """Закрывает соединение с базой данных."""
-    from db.connection import close_connection
-    close_connection()
+    """Закрыть соединение с базой данных."""
+    db.close()
+
+
+__all__ = ["connect", "get_connection", "execute_query", "execute_insert", "close"]

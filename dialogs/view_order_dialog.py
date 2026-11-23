@@ -1,114 +1,98 @@
 """Диалог просмотра заказа."""
+
+from __future__ import annotations
+
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QFormLayout, QTableWidgetItem, QTableWidget,
-    QAbstractItemView, QHeaderView
+    QAbstractItemView, QFormLayout, QGroupBox, QHBoxLayout, QHeaderView,
+    QLabel, QTableWidget, QVBoxLayout, QWidget,
 )
-from PyQt6 import QtCore
-from db import order_repo
+
+from db import order_repo as _default_order_repo
+from services.order_service import OrderService
+from utils.formatting import format_date
+from widgets.base_dialog import BaseDialog
+from widgets.base_table import make_item
+from widgets.styles import TOTAL_VALUE_STYLE
 
 
-class ViewOrderDialog(QDialog):
-    def __init__(self, parent, order_id: int):
-        super().__init__(parent)
+class ViewOrderDialog(BaseDialog):
+    """Просмотр заказа: шапка, список услуг, итоговая сумма."""
+
+    def __init__(self, parent: QWidget | None, order_id: int,
+                 order_service: OrderService | None = None) -> None:
+        super().__init__(parent, title="Просмотр заказа", min_width=550)
         self.order_id = order_id
-        self.setWindowTitle("Просмотр заказа")
-        self.setMinimumWidth(550)
+        # client_repo и service_repo для просмотра не нужны
+        self.order_service = order_service or OrderService(_default_order_repo, None, None)
         self._setup_ui()
         self._load_order()
 
-    def _setup_ui(self):
-        root = QVBoxLayout(self)
-
+    def _setup_ui(self) -> None:
         info_box = QGroupBox("Информация о заказе")
         info_lay = QFormLayout(info_box)
         self.lblVesselCode = QLabel()
-        info_lay.addRow("Код сосуда:", self.lblVesselCode)
         self.lblClient = QLabel()
-        info_lay.addRow("Клиент:", self.lblClient)
         self.lblEmployee = QLabel()
-        info_lay.addRow("Сотрудник:", self.lblEmployee)
         self.lblDate = QLabel()
-        info_lay.addRow("Дата:", self.lblDate)
         self.lblStatus = QLabel()
-        info_lay.addRow("Статус:", self.lblStatus)
-        root.addWidget(info_box)
+        for caption, label in (
+            ("Код сосуда:", self.lblVesselCode),
+            ("Клиент:", self.lblClient),
+            ("Сотрудник:", self.lblEmployee),
+            ("Дата:", self.lblDate),
+            ("Статус:", self.lblStatus),
+        ):
+            info_lay.addRow(caption, label)
+        self.root.addWidget(info_box)
 
         services_box = QGroupBox("Услуги")
         services_lay = QVBoxLayout(services_box)
-
         self.tableServices = QTableWidget()
         self.tableServices.setColumnCount(2)
         self.tableServices.setHorizontalHeaderLabels(["Услуга", "Стоимость"])
         self.tableServices.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tableServices.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tableServices.verticalHeader().setVisible(False)
-
-        # Настройка заголовков: первый столбец растягивается, второй — по содержимому
         header = self.tableServices.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-
-        # Включаем перенос текста и автоматическую высоту строк
         self.tableServices.setWordWrap(True)
         self.tableServices.verticalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
-
         services_lay.addWidget(self.tableServices)
-        root.addWidget(services_box)
+        self.root.addWidget(services_box)
 
         total_lay = QHBoxLayout()
         total_lay.addWidget(QLabel("Итого:"))
         self.lblTotal = QLabel("0.00 ₽")
-        self.lblTotal.setStyleSheet("font-size: 14pt; font-weight: bold; color: #174A7E;")
+        self.lblTotal.setStyleSheet(TOTAL_VALUE_STYLE)
         total_lay.addWidget(self.lblTotal)
         total_lay.addStretch()
-        root.addLayout(total_lay)
+        self.root.addLayout(total_lay)
 
-        btns = QHBoxLayout()
-        btn_close = QPushButton("Закрыть")
-        btn_close.clicked.connect(self.accept)
-        btns.addStretch()
-        btns.addWidget(btn_close)
-        root.addLayout(btns)
+        self.add_close_button()
 
-    def _load_order(self):
-        order = order_repo.get_order(self.order_id)
+    def _load_order(self) -> None:
+        order = self.order_service.get_order(self.order_id)
         if not order:
             return
 
-        self.lblVesselCode.setText(str(order.get('vessel_code', '')))
-        self.lblClient.setText(str(order.get('client_name', '')))
-        self.lblEmployee.setText(str(order.get('employee_name', '')))
-        order_date = order.get('order_date')
-        if order_date:
-            self.lblDate.setText(str(order_date).split(' ')[0])
-        else:
-            self.lblDate.setText('')
-        self.lblStatus.setText(str(order.get('status', '')))
+        self.lblVesselCode.setText(str(order.get("vessel_code", "")))
+        self.lblClient.setText(str(order.get("client_name", "")))
+        self.lblEmployee.setText(str(order.get("employee_name", "")))
+        self.lblDate.setText(format_date(order.get("order_date")))
+        self.lblStatus.setText(str(order.get("status", "")))
 
-        services = order_repo.get_order_services(self.order_id)
+        services = self.order_service.get_order_services(self.order_id)
         self.tableServices.setRowCount(len(services))
         total = 0.0
-
         for row_idx, s in enumerate(services):
-            name = str(s.get('service_name', ''))
-            price = float(s.get('price', 0))
+            price = float(s.get("price", 0))
             total += price
-
-            # Ячейка с названием — с переносом и выравниванием по верху
-            name_item = QTableWidgetItem(name)
-            name_item.setTextAlignment(
-                QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop
-            )
-            self.tableServices.setItem(row_idx, 0, name_item)
-
-            # Ячейка с ценой — по правому краю
-            price_item = QTableWidgetItem(f"{price:.2f} ₽")
-            price_item.setTextAlignment(
-                QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
-            )
-            self.tableServices.setItem(row_idx, 1, price_item)
-
+            self.tableServices.setItem(row_idx, 0, make_item(s.get("service_name")))
+            self.tableServices.setItem(row_idx, 1, make_item(f"{price:.2f} ₽", align_right=True))
         self.lblTotal.setText(f"{total:.2f} ₽")
+
+
+__all__ = ["ViewOrderDialog"]

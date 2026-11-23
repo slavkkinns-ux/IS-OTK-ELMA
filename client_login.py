@@ -1,6 +1,9 @@
 """Диалог входа для клиентов."""
+
+from __future__ import annotations
+
+import logging
 import os
-import hashlib
 from PyQt6.QtWidgets import (
     QDialog, QLineEdit, QCheckBox, QPushButton, QHBoxLayout, QWidget
 )
@@ -9,7 +12,10 @@ from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from ui.login_client_ui import Ui_ClientLoginWindow
 from session import Session, Role
-from db import client_repo
+from services.client_service import ClientService
+from db import client_repo as _default_client_repo
+
+logger = logging.getLogger(__name__)
 
 
 def _get_logo_path(filename: str) -> str:
@@ -21,7 +27,7 @@ def _render_svg(filename: str, size: int = 20) -> QIcon:
     """Рендерит SVG через QSvgRenderer."""
     path = _get_logo_path(filename)
     if not os.path.exists(path):
-        print(f"[WARN] Иконка не найдена: {path}")
+        logger.warning("Иконка не найдена: %s", path)
         return QIcon()
     renderer = QSvgRenderer(path)
     pixmap = QPixmap(size, size)
@@ -37,6 +43,9 @@ class ClientLoginDialog(QDialog):
         super().__init__()
         self.ui = Ui_ClientLoginWindow()
         self.ui.setupUi(self)
+
+        # Dependency Injection
+        self.client_service = ClientService(_default_client_repo)
 
         self.ui.lblError.setText("")
         self.ui.lblError.hide()
@@ -150,15 +159,14 @@ class ClientLoginDialog(QDialog):
             return
 
         try:
-            password_hash = hashlib.sha256(password.encode()).hexdigest()
-            user_client = client_repo.get_client_by_login(login_text, password_hash)
+            user_client = self.client_service.authenticate_client(login_text, password)
 
             if user_client:
                 Session.set_user(
                     login=user_client.get('email') or user_client.get('phone', ''),
                     role=Role.CLIENT,
-                    display_name=user_client['full_name'],
-                    user_id=user_client['client_id'],
+                    display_name=user_client.get('full_name', ''),
+                    user_id=user_client.get('client_id'),
                     user_type='client',
                     remember=remember,
                 )
@@ -166,6 +174,9 @@ class ClientLoginDialog(QDialog):
                 return
 
             self.show_error("Неверный E-mail/телефон или пароль")
-        except Exception as e:
+        except Exception as exc:
+            logger.error("Ошибка входа клиента: %s", exc)
             self.show_error("Ошибка подключения к БД")
-            print(e)
+
+
+__all__ = ["ClientLoginDialog"]

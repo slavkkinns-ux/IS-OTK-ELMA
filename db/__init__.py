@@ -1,31 +1,85 @@
-"""Фасад доступа к базе данных."""
-from db import connection
-from db import client_repo
-from db import order_repo
-from db import services_repo
+"""Фасад доступа к базе данных (Data Access Layer).
 
-try:
-    from db import report_repo
-except ImportError:
-    report_repo = None
+Экспортирует:
+- функции подключения: connect, get_connection, close
+- экземпляр DatabaseConnection: db
+- все репозитории: ClientRepository, OrderRepository, ServiceRepository,
+  ReportRepository, EmployeeRepository
+"""
+
+from __future__ import annotations
+
+from db.database import db, DatabaseConnection
+from db.connection import (
+    ensure_database,
+    ensure_schema,
+    ensure_columns,
+    check_db,
+    is_db_available,
+    connect_with_retry,
+    get_config_info,
+    get_last_error,
+    close_connection,
+)
+from db.repositories import (
+    AbstractRepository,
+    ClientRepository,
+    OrderRepository,
+    ServiceRepository,
+    ReportRepository,
+    EmployeeRepository,
+)
+
+# Экземпляры репозиториев для удобного импорта (один экземпляр на репозиторий)
+client_repo = ClientRepository()
+order_repo = OrderRepository()
+services_repo = ServiceRepository()
+report_repo = ReportRepository()
+employee_repo = EmployeeRepository()
+
+__all__ = [
+    # Подключение
+    "db",
+    "DatabaseConnection",
+    "connect",
+    "get_connection",
+    "close",
+    # Схема / миграция
+    "ensure_database",
+    "ensure_schema",
+    "ensure_columns",
+    "check_db",
+    "is_db_available",
+    "connect_with_retry",
+    "get_config_info",
+    "get_last_error",
+    "close_connection",
+    # Репозитории (классы)
+    "AbstractRepository",
+    "ClientRepository",
+    "OrderRepository",
+    "ServiceRepository",
+    "ReportRepository",
+    "EmployeeRepository",
+    # Репозитории (экземпляры)
+    "client_repo",
+    "order_repo",
+    "services_repo",
+    "report_repo",
+    "employee_repo",
+]
 
 
 def connect():
-    """Открывает соединение с БД."""
-    return connection.get_connection()
+    """Открыть соединение с БД."""
+    return db.connect()
 
 
 def get_connection():
-    """Возвращает активное соединение."""
-    return connection.get_connection()
+    """Вернуть активное соединение."""
+    return db.get_connection()
 
 
 def close():
-    """Закрывает соединение с БД."""
-    connection.close_connection()
-
-
-__all__ = [
-    'connect', 'get_connection', 'close',
-    'client_repo', 'order_repo', 'services_repo', 'report_repo',
-]
+    """Закрыть соединение с БД."""
+    db.close()

@@ -1,150 +1,46 @@
 """Главное окно приложения ИС ОТК."""
-import sys
+from __future__ import annotations
+
+import logging
 import os
-from datetime import datetime, date
+from datetime import datetime
 
 from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem,
     QMessageBox, QDialog, QDateEdit, QLabel, QPushButton,
-    QHBoxLayout, QLineEdit, QGroupBox, QFormLayout, QWidget,
-    QVBoxLayout, QTextEdit, QSizePolicy
+    QHBoxLayout, QVBoxLayout
 )
 from PyQt6 import QtGui, QtCore
 from ui.main_window_ui import Ui_MainWindow
 from session import Session
+from utils.formatting import format_date
+from utils.files import open_file, print_file
+from services.order_service import OrderService
+from services.client_service import ClientService
+from services.report_service import ReportService
+from services.employee_service import EmployeeService
+from services.service_service import ServiceService
+from db import order_repo as _default_order_repo
+from db import client_repo as _default_client_repo
+from db import report_repo as _default_report_repo
+from db import employee_repo as _default_employee_repo
+from db import services_repo as _default_services_repo
 from dialogs import (
     OrderDialog, ViewOrderDialog, ClientDialog,
     ClientEditDialog, ClientViewDialog, ServicesDialog,
     ResearchResultDialog
 )
-from dialogs.employee_dialog import EmployeeDialog
 from pages.employees_page import EmployeesPage
-from db import client_repo, order_repo, report_repo
+from dialogs.log_widget import LogWidget
+from widgets.base_table import make_item, populate_table
+from widgets.styles import (
+    SIDEBAR_BUTTON_STYLE,
+    SIDEBAR_BUTTON_SECONDARY_STYLE,
+    SIDEBAR_DANGER_BUTTON_STYLE,
+)
 
-class LogWidget(QWidget):
-    """Виджет для просмотра логов приложения (только для администратора)."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Логи приложения")
-        self.setMinimumSize(700, 500)
-
-        layout = QVBoxLayout(self)
-
-        # Заголовок
-        title = QLabel("Логи приложения")
-        title.setStyleSheet("font-size: 14pt; font-weight: bold; color: #174A7E; padding: 5px;")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
-
-        # Текстовое поле с логами
-        self.text_edit = QTextEdit()
-        self.text_edit.setReadOnly(True)
-        self.text_edit.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                font-family: Consolas, 'Courier New', monospace;
-                font-size: 10pt;
-                border: 1px solid #CBD7E4;
-                border-radius: 4px;
-                padding: 5px;
-            }
-        """)
-        layout.addWidget(self.text_edit)
-
-        # Кнопки
-        btns = QHBoxLayout()
-        btn_clear = QPushButton("Очистить")
-        btn_clear.clicked.connect(self.text_edit.clear)
-        btn_save = QPushButton("Сохранить в файл")
-        btn_save.clicked.connect(self._save_logs)
-        btn_close = QPushButton("Закрыть")
-        btn_close.clicked.connect(self.close)
-
-        btns.addWidget(btn_clear)
-        btns.addWidget(btn_save)
-        btns.addStretch()
-        btns.addWidget(btn_close)
-        layout.addLayout(btns)
-
-        # Загружаем последний лог-файл
-        self._load_latest_log()
-
-    def _load_latest_log(self):
-        """Загрузить содержимое последнего лог-файла."""
-        import os
-        from datetime import datetime
-
-        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
-        if not os.path.exists(log_dir):
-            self.text_edit.setPlainText("Папка logs не найдена.")
-            return
-
-        # Находим последний файл
-        log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
-        if not log_files:
-            self.text_edit.setPlainText("Лог-файлы не найдены.")
-            return
-
-        log_files.sort(reverse=True)
-        latest_log = os.path.join(log_dir, log_files[0])
-
-        try:
-            with open(latest_log, 'r', encoding='utf-8') as f:
-                content = f.read()
-            self.text_edit.setPlainText(content)
-            # Прокручиваем в конец
-            scrollbar = self.text_edit.verticalScrollBar()
-            scrollbar.setValue(scrollbar.maximum())
-        except Exception as e:
-            self.text_edit.setPlainText(f"Ошибка чтения лога:\n{e}")
-
-    def _save_logs(self):
-        """Сохранить логи в файл."""
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
-        from datetime import datetime
-
-        default_name = f"logs_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Сохранить логи", default_name, "Text Files (*.txt);;All Files (*)"
-        )
-        if path:
-            try:
-                with open(path, 'w', encoding='utf-8') as f:
-                    f.write(self.text_edit.toPlainText())
-                QMessageBox.information(self, "Готово", f"Логи сохранены в:\n{path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить:\n{e}")
-
-# =============================================================================
-# Утилиты
-# =============================================================================
-
-def format_date(value) -> str:
-    """Безопасно форматирует дату/дата-время в строку ДД.ММ.ГГГГ."""
-    if value is None:
-        return ''
-    if isinstance(value, datetime):
-        return value.strftime('%d.%m.%Y')
-    if isinstance(value, date):
-        return value.strftime('%d.%m.%Y')
-    return str(value)
-
-
-class SortableTableWidgetItem(QTableWidgetItem):
-    """Ячейка таблицы с правильной сортировкой чисел и дат."""
-
-    def __init__(self, text: str, sort_value=None):
-        super().__init__(text)
-        self._sort_value = sort_value if sort_value is not None else text
-
-    def __lt__(self, other):
-        try:
-            return float(self._sort_value) < float(other._sort_value)
-        except (ValueError, TypeError):
-            return str(self._sort_value) < str(other._sort_value)
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -154,15 +50,30 @@ class SortableTableWidgetItem(QTableWidgetItem):
 class MainWindow(QMainWindow):
     """Главное окно приложения."""
 
-    def __init__(self, app):
+    def __init__(self, app,
+                 order_service: OrderService | None = None,
+                 client_service: ClientService | None = None,
+                 report_service: ReportService | None = None,
+                 employee_service: EmployeeService | None = None):
         super().__init__()
         self.app = app
+
+        # Dependency Injection
+        self.order_service = order_service or OrderService(
+            _default_order_repo, _default_client_repo, _default_services_repo
+        )
+
+        self.client_service = client_service or ClientService(_default_client_repo)
+        self.report_service = report_service or ReportService(
+            _default_report_repo, _default_order_repo
+        )
+        self.employee_service = employee_service or EmployeeService(_default_employee_repo)
 
         # Подключение уже выполнено в main.py через ConnectionDialog
         # Просто убеждаемся, что соединение активно
         try:
-            from db import get_connection
-            get_connection()
+            from db.database import db
+            db.get_connection()
         except Exception as e:
             QMessageBox.critical(
                 self, "Ошибка",
@@ -193,14 +104,13 @@ class MainWindow(QMainWindow):
         self._setup_reports_tab()
 
     def closeEvent(self, event):
-        from db import close
-        close()
+        from db.database import db
+        db.close()
         event.accept()
 
     def show_page(self, page_index: int):
         """Переключиться на указанную страницу."""
-        print(f"[DEBUG] Переключение на страницу с индексом: {page_index}")
-        print(f"[DEBUG] Всего страниц в стеке: {self.ui.stackedWidget.count()}")
+        logger.debug("Переключение на страницу %d (всего %d)", page_index, self.ui.stackedWidget.count())
         self.ui.stackedWidget.setCurrentIndex(page_index)
 
     def logout(self):
@@ -212,28 +122,33 @@ class MainWindow(QMainWindow):
     # =========================================================================
 
     def _setup_sidebar(self):
-        """Настройка бокового меню и стилей кнопок."""
-        sidebar_style = self.ui.sidebarFrame.styleSheet()
-        if "QPushButton:checked" not in sidebar_style:
-            sidebar_style += """
-            QPushButton:checked {
-                background-color: #154360;
-                border-left: 4px solid #3498db;
-                padding-left: 10px;
-            }
-            """
-            self.ui.sidebarFrame.setStyleSheet(sidebar_style)
+        """Настройка бокового меню и стилей кнопок — адаптивные, растягиваются по ширине sidebar."""
+        from PyQt6.QtWidgets import QSizePolicy
 
-        self.nav_group = QButtonGroup(self)
+        # Применяем единый стиль ко всем кнопкам навигации
         nav_buttons = [
             self.ui.btnHome, self.ui.btnOrders, self.ui.btnClients,
             self.ui.btnResearch, self.ui.btnReports,
         ]
         for btn in nav_buttons:
+            btn.setStyleSheet(SIDEBAR_BUTTON_STYLE)
+            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+            # Убираем минимальную ширину, заданную в .ui, и разрешаем растягиваться
+            btn.setMinimumWidth(0)
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        self.nav_group = QButtonGroup(self)
+        for btn in nav_buttons:
             self.nav_group.addButton(btn)
             btn.setCheckable(True)
         self.ui.btnHome.setChecked(True)
         self.nav_group.buttonClicked.connect(self._on_nav_clicked)
+
+        # Кнопка выхода — danger стиль
+        self.ui.btnExit.setStyleSheet(SIDEBAR_DANGER_BUTTON_STYLE)
+        self.ui.btnExit.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.ui.btnExit.setMinimumWidth(0)
+        self.ui.btnExit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.ui.btnExit.clicked.connect(self.logout)
 
         # Кнопка логов — только для администратора
@@ -242,26 +157,7 @@ class MainWindow(QMainWindow):
 
         # Добавляем кнопку "Управление сотрудниками" только для админов
         if self._is_admin():
-            btn_employees = QPushButton("Управление сотрудниками")
-            btn_employees.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-            btn_employees.setMinimumSize(QtCore.QSize(180, 42))
-            btn_employees.clicked.connect(lambda: self.show_page(self.employees_page_index))
-            
-            # Вставляем перед кнопкой "Выйти"
-            sidebar_layout = self.ui.sidebarFrame.layout()
-            if sidebar_layout:
-                # Находим индекс кнопки "Выйти"
-                exit_btn_index = -1
-                for i in range(sidebar_layout.count()):
-                    item = sidebar_layout.itemAt(i)
-                    if item.widget() and "Выйти" in item.widget().text():
-                        exit_btn_index = i
-                        break
-                
-                if exit_btn_index >= 0:
-                    sidebar_layout.insertWidget(exit_btn_index, btn_employees)
-                else:
-                    sidebar_layout.addWidget(btn_employees)
+            self._add_employees_button()
 
 
     def _is_admin(self) -> bool:
@@ -273,21 +169,13 @@ class MainWindow(QMainWindow):
 
     def _add_logs_button(self):
         """Добавить кнопку просмотра логов в нижнюю часть sidebar."""
+        from PyQt6.QtWidgets import QSizePolicy
+
         btn_logs = QPushButton("📋 Логи")
-        btn_logs.setStyleSheet("""
-            QPushButton {
-                background-color: #2C3E50;
-                color: white;
-                border: none;
-                padding: 10px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                text-align: left;
-            }
-            QPushButton:hover {
-                background-color: #34495E;
-            }
-        """)
+        btn_logs.setStyleSheet(SIDEBAR_BUTTON_SECONDARY_STYLE)
+        btn_logs.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        btn_logs.setMinimumWidth(0)
+        btn_logs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         btn_logs.clicked.connect(self._show_logs)
 
         # Ищем layout sidebar и добавляем кнопку перед кнопкой выхода
@@ -301,6 +189,34 @@ class MainWindow(QMainWindow):
                     return
         # Если не нашли — добавляем в конец
         sidebar_layout.addWidget(btn_logs)
+
+
+    def _add_employees_button(self):
+        """Добавить кнопку управления сотрудниками перед кнопкой выхода."""
+        from PyQt6.QtWidgets import QSizePolicy
+
+        btn_employees = QPushButton("Управление сотрудниками")
+        btn_employees.setStyleSheet(SIDEBAR_BUTTON_SECONDARY_STYLE)
+        btn_employees.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        btn_employees.setMinimumWidth(0)
+        btn_employees.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        btn_employees.clicked.connect(lambda: self.show_page(self.employees_page_index))
+
+        # Вставляем перед кнопкой "Выйти"
+        sidebar_layout = self.ui.sidebarFrame.layout()
+        if sidebar_layout:
+            # Находим индекс кнопки "Выйти"
+            exit_btn_index = -1
+            for i in range(sidebar_layout.count()):
+                item = sidebar_layout.itemAt(i)
+                if item.widget() and "Выйти" in item.widget().text():
+                    exit_btn_index = i
+                    break
+
+            if exit_btn_index >= 0:
+                sidebar_layout.insertWidget(exit_btn_index, btn_employees)
+            else:
+                sidebar_layout.addWidget(btn_employees)
 
 
     def _show_logs(self):
@@ -386,7 +302,7 @@ class MainWindow(QMainWindow):
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         h.setMinimumSectionSize(120)
-        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch) 
+        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.ui.tableResearchQueue.setWordWrap(True)
 
         # Исследования отчёта
@@ -438,7 +354,7 @@ class MainWindow(QMainWindow):
         self._load_recent_orders()
 
     def _load_home_stats(self):
-        stats = order_repo.get_home_stats()
+        stats = self.order_service.get_home_stats()
         if not stats:
             return
         self.ui.lblOrderValue.setText(str(stats['total_orders']))
@@ -447,34 +363,20 @@ class MainWindow(QMainWindow):
         self.ui.lblPendingChecksValue.setText(str(stats['pending_checks']))
 
     def _load_recent_orders(self):
-        orders = order_repo.get_recent_orders(limit=5)
+        orders = self.order_service.get_recent_orders(limit=5)
         self._populate_recent_orders_table(orders)
 
     def _populate_recent_orders_table(self, orders):
-        self.ui.tableRecentOrders.setSortingEnabled(False)
-        self.ui.tableRecentOrders.setRowCount(0)
-        if not orders:
-            self.ui.tableRecentOrders.setSortingEnabled(True)
-            return
-        self.ui.tableRecentOrders.setRowCount(len(orders))
-        for row_idx, order in enumerate(orders):
-            item_vessel = SortableTableWidgetItem(str(order['vessel_code']))
-            self.ui.tableRecentOrders.setItem(row_idx, 0, item_vessel)
+        populate_table(self.ui.tableRecentOrders, orders, self._fill_recent_order_row)
 
-            item_client = SortableTableWidgetItem(order['client_name'] or '')
-            self.ui.tableRecentOrders.setItem(row_idx, 1, item_client)
-
-            item_date = SortableTableWidgetItem(
-                format_date(order['order_date']),
-                sort_value=order['order_date']
-            )
-            item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableRecentOrders.setItem(row_idx, 2, item_date)
-
-            item_status = SortableTableWidgetItem(order['status'])
-            item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableRecentOrders.setItem(row_idx, 3, item_status)
-        self.ui.tableRecentOrders.setSortingEnabled(True)
+    @staticmethod
+    def _fill_recent_order_row(table, row_idx, order):
+        table.setItem(row_idx, 0, make_item(order['vessel_code']))
+        table.setItem(row_idx, 1, make_item(order['client_name']))
+        table.setItem(row_idx, 2, make_item(
+            format_date(order['order_date']), center=True,
+            sort_value=order['order_date']))
+        table.setItem(row_idx, 3, make_item(order['status'], center=True))
 
     def _go_to_orders(self):
         self.ui.btnOrders.setChecked(True)
@@ -504,12 +406,11 @@ class MainWindow(QMainWindow):
 
     def _add_services_button(self):
         """Добавить кнопку управления услугами в панель заказов."""
-        # Ищем панель кнопок действий на странице заказов
         parent = self.ui.btnAddOrder.parent()
         parent_layout = parent.layout()
         if not parent_layout:
             return
-        
+
         btn = QPushButton("⚙ Услуги")
         btn.setStyleSheet("""
             QPushButton {
@@ -529,11 +430,11 @@ class MainWindow(QMainWindow):
 
     def _open_services_dialog(self):
         """Открыть диалог управления услугами."""
-        dlg = ServicesDialog(self)
+        dlg = ServicesDialog(self, service_service=ServiceService(_default_services_repo))
         dlg.exec()
 
     def _load_orders_stats(self):
-        stats = order_repo.get_orders_stats()
+        stats = self.order_service.get_orders_stats()
         if not stats:
             return
         self.ui.lblTotalOrdersValue.setText(str(stats['total']))
@@ -542,49 +443,25 @@ class MainWindow(QMainWindow):
         self.ui.lblOrdersCompletedValue.setText(str(stats['completed']))
 
     def _load_orders_table(self):
-        orders = order_repo.get_all_orders()
+        orders = self.order_service.get_all_orders()
         self._populate_orders_table(orders)
 
     def _populate_orders_table(self, orders):
-        self.ui.tableOrders.setSortingEnabled(False)
-        self.ui.tableOrders.setRowCount(0)
-        if not orders:
-            self.ui.tableOrders.setSortingEnabled(True)
-            return
-        self.ui.tableOrders.setRowCount(len(orders))
-        for row_idx, order in enumerate(orders):
-            item_vessel = SortableTableWidgetItem(
-                str(order['vessel_code']),
-                sort_value=order['order_id']
-            )
-            item_vessel.setData(Qt.ItemDataRole.UserRole, order['order_id'])
-            self.ui.tableOrders.setItem(row_idx, 0, item_vessel)
+        populate_table(self.ui.tableOrders, orders, self._fill_order_row)
 
-            item_client = QTableWidgetItem(order.get('client_name') or '')
-            self.ui.tableOrders.setItem(row_idx, 1, item_client)
-
-            item_date = SortableTableWidgetItem(
-                format_date(order.get('order_date')),
-                sort_value=order.get('order_date')
-            )
-            item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableOrders.setItem(row_idx, 2, item_date)
-
-            item_employee = QTableWidgetItem(order.get('employee_name') or '')
-            self.ui.tableOrders.setItem(row_idx, 3, item_employee)
-
-            item_status = QTableWidgetItem(order.get('status') or '')
-            item_status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableOrders.setItem(row_idx, 4, item_status)
-
-            item_completion = QTableWidgetItem('-')
-            item_completion.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableOrders.setItem(row_idx, 5, item_completion)
-
-            item_actions = QTableWidgetItem('')
-            item_actions.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableOrders.setItem(row_idx, 6, item_actions)
-        self.ui.tableOrders.setSortingEnabled(True)
+    @staticmethod
+    def _fill_order_row(table, row_idx, order):
+        table.setItem(row_idx, 0, make_item(
+            order['vessel_code'], sort_value=order['order_id'],
+            user_data=order['order_id']))
+        table.setItem(row_idx, 1, make_item(order.get('client_name')))
+        table.setItem(row_idx, 2, make_item(
+            format_date(order.get('order_date')), center=True,
+            sort_value=order.get('order_date')))
+        table.setItem(row_idx, 3, make_item(order.get('employee_name')))
+        table.setItem(row_idx, 4, make_item(order.get('status'), center=True))
+        table.setItem(row_idx, 5, make_item('-', center=True))
+        table.setItem(row_idx, 6, make_item('', center=True))
 
     def _add_orders_date_filter(self):
         """Добавляем фильтр по диапазону дат в строку фильтров заказов."""
@@ -613,7 +490,7 @@ class MainWindow(QMainWindow):
         query = self.ui.editOrderSearch.text().strip().lower()
         status = self.ui.comboOrderStatus.currentText()
 
-        orders = order_repo.get_all_orders()
+        orders = self.order_service.get_all_orders()
         filtered = []
         for o in orders:
             match_text = True
@@ -654,7 +531,10 @@ class MainWindow(QMainWindow):
         self._load_orders_table()
 
     def _add_order(self):
-        dlg = OrderDialog(self, order_id=None)
+        dlg = OrderDialog(self, order_id=None,
+                          order_service=self.order_service,
+                          client_service=self.client_service,
+                          service_service=ServiceService(_default_services_repo))
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._load_orders_table()
             self._load_orders_stats()
@@ -670,7 +550,10 @@ class MainWindow(QMainWindow):
         order_id = self._get_selected_order_id(row)
         if not order_id:
             return
-        dlg = OrderDialog(self, order_id=order_id)
+        dlg = OrderDialog(self, order_id=order_id,
+                          order_service=self.order_service,
+                          client_service=self.client_service,
+                          service_service=ServiceService(_default_services_repo))
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._load_orders_table()
             self._load_orders_stats()
@@ -685,7 +568,8 @@ class MainWindow(QMainWindow):
         order_id = self._get_selected_order_id(row)
         if not order_id:
             return
-        dlg = ViewOrderDialog(self, order_id=order_id)
+        dlg = ViewOrderDialog(self, order_id=order_id,
+                              order_service=self.order_service)
         dlg.exec()
 
     def _get_selected_order_id(self, row: int) -> int | None:
@@ -696,7 +580,7 @@ class MainWindow(QMainWindow):
         if oid:
             return int(oid)
         vessel = item.text()
-        orders = order_repo.get_all_orders()
+        orders = self.order_service.get_all_orders()
         for o in orders:
             if o.get('vessel_code') == vessel:
                 return o['order_id']
@@ -720,7 +604,7 @@ class MainWindow(QMainWindow):
         self._load_clients_stats()
 
     def _load_clients_stats(self):
-        stats = client_repo.get_clients_stats()
+        stats = self.client_service.get_clients_stats()
         if not stats:
             return
         self.ui.lblcardTotalClientsValue.setText(str(stats['total_clients']))
@@ -728,53 +612,31 @@ class MainWindow(QMainWindow):
         self.ui.lblcardClientsWithOrdersValue.setText(str(stats['clients_with_orders']))
 
     def _load_clients_to_table(self):
-        clients = client_repo.get_all_clients()
-        orders_count = client_repo.get_clients_orders_count()
+        clients = self.client_service.get_all_clients()
+        orders_count = self.client_service.get_clients_orders_count()
         self._populate_clients_table(clients, orders_count)
 
     def _populate_clients_table(self, clients, orders_count=None):
         if orders_count is None:
-            orders_count = client_repo.get_clients_orders_count()
+            orders_count = self.client_service.get_clients_orders_count()
 
-        self.ui.tableClients.setSortingEnabled(False)
-        self.ui.tableClients.setRowCount(0)
-        if not clients:
-            self.ui.tableClients.setSortingEnabled(True)
-            return
-        self.ui.tableClients.setRowCount(len(clients))
-        for row_idx, c in enumerate(clients):
-            item_id = SortableTableWidgetItem(
-                str(c['client_id']),
-                sort_value=c['client_id']
-            )
-            item_id.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableClients.setItem(row_idx, 0, item_id)
-
-            self.ui.tableClients.setItem(
-                row_idx, 1, QTableWidgetItem(c.get('name', '')))
-
-            item_details = QTableWidgetItem(c.get('details', ''))
-            item_details.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableClients.setItem(row_idx, 2, item_details)
-
-            self.ui.tableClients.setItem(
-                row_idx, 3, QTableWidgetItem(c.get('contact_person', '')))
-
+        def fill_row(table, row_idx, c):
             count = orders_count.get(c['client_id'], 0)
-            item_orders = SortableTableWidgetItem(
-                str(count),
-                sort_value=count
-            )
-            item_orders.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableClients.setItem(row_idx, 4, item_orders)
-        self.ui.tableClients.setSortingEnabled(True)
+            table.setItem(row_idx, 0, make_item(
+                c['client_id'], center=True, sort_value=c['client_id']))
+            table.setItem(row_idx, 1, make_item(c.get('name')))
+            table.setItem(row_idx, 2, make_item(c.get('details'), center=True))
+            table.setItem(row_idx, 3, make_item(c.get('contact_person')))
+            table.setItem(row_idx, 4, make_item(count, center=True, sort_value=count))
+
+        populate_table(self.ui.tableClients, clients, fill_row)
 
     def _search_clients(self):
         query = self.ui.editClientsSearch.text().strip().lower()
         if not query:
             self._load_clients_to_table()
             return
-        clients = client_repo.get_all_clients()
+        clients = self.client_service.get_all_clients()
         filtered = [
             c for c in clients
             if query in (
@@ -790,7 +652,8 @@ class MainWindow(QMainWindow):
         self._load_clients_to_table()
 
     def _add_client(self):
-        dlg = ClientDialog(self, initial_type="ЮЛ")
+        dlg = ClientDialog(self, initial_type="ЮЛ",
+                           client_service=self.client_service)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._refresh_clients_page()
             self._load_home_stats()
@@ -801,7 +664,8 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Редактирование", "Выберите клиента в таблице.")
             return
         client_id = int(self.ui.tableClients.item(row, 0).text())
-        dlg = ClientEditDialog(self, client_id)
+        dlg = ClientEditDialog(self, client_id,
+                               client_service=self.client_service)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._refresh_clients_page()
 
@@ -811,7 +675,8 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Просмотр", "Выберите клиента в таблице.")
             return
         client_id = int(self.ui.tableClients.item(row, 0).text())
-        dlg = ClientViewDialog(self, client_id)
+        dlg = ClientViewDialog(self, client_id,
+                               client_service=self.client_service)
         dlg.exec()
 
     def _refresh_clients_page(self):
@@ -840,7 +705,7 @@ class MainWindow(QMainWindow):
 
     def _load_employees_combo(self):
         """Загрузить список активных сотрудников в comboResearchEmployee."""
-        employees = report_repo.get_all_employees()
+        employees = self.employee_service.get_employees()
         self.ui.comboResearchEmployee.blockSignals(True)
         self.ui.comboResearchEmployee.clear()
         for emp in employees:
@@ -871,7 +736,7 @@ class MainWindow(QMainWindow):
 
     def _load_existing_research_result(self, order_service_id: int):
         """Загрузить существующий результат исследования в поля."""
-        result = report_repo.get_research_result(order_service_id)
+        result = self.report_service.get_research_result(order_service_id)
         if result:
             self.ui.editResearchResultValue.setText(result.get('result_value', '') or '')
             self.ui.textResearchConclusion.setPlainText(result.get('conclusion', '') or '')
@@ -921,7 +786,7 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            report_repo.save_research_result(
+            self.report_service.save_research_result(
                 order_service_id=self._current_order_service_id,
                 employee_id=employee_id,
                 result_value=result_value,
@@ -930,10 +795,10 @@ class MainWindow(QMainWindow):
             )
             QMessageBox.information(self, "Готово", "Результат исследования сохранён.")
             self._load_research_queue()
-            
+
             # Обновляем страницу отчётов
             self._refresh_reports_page()
-            
+
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить результат:\n{e}")
 
@@ -941,13 +806,13 @@ class MainWindow(QMainWindow):
         """Обновить страницу отчётов."""
         # Обновляем combo заказов
         self._load_reports_combo()
-        
+
         # Обновляем таблицу исследований для текущего заказа
         order_id = self.ui.comboreportsOrder.currentData()
         if order_id:
             self._load_report_research_table(order_id)
             self._update_report_preview(order_id)
-        
+
         # Обновляем список последних отчётов
         self._load_recent_reports()
 
@@ -975,55 +840,38 @@ class MainWindow(QMainWindow):
             self,
             order_service_id=self._current_order_service_id,
             research_info=research_info,
+            report_service=self.report_service,
+            employee_service=self.employee_service,
         )
         dlg.exec()
 
     def _load_research_queue(self):
         """Загрузка очереди исследований."""
-        research = report_repo.get_research_queue()
+        research = self.report_service.get_research_queue()
         self._populate_research_table(research)
 
     def _populate_research_table(self, research):
         """Заполнить таблицу исследований."""
-        self.ui.tableResearchQueue.setSortingEnabled(False)
-        self.ui.tableResearchQueue.setRowCount(0)
-        if not research:
-            self.ui.tableResearchQueue.setSortingEnabled(True)
-            return
-
-        self.ui.tableResearchQueue.setRowCount(len(research))
-        for row_idx, item in enumerate(research):
-            item_order = SortableTableWidgetItem(
-                str(item['order_id']),
-                sort_value=item['order_id']
-            )
-            item_order.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item_order.setData(Qt.ItemDataRole.UserRole, item['order_service_id'])
-            self.ui.tableResearchQueue.setItem(row_idx, 0, item_order)
-
-            item_vessel = SortableTableWidgetItem(str(item['vessel_code']))
-            self.ui.tableResearchQueue.setItem(row_idx, 1, item_vessel)
-
-            item_service = SortableTableWidgetItem(item['service_name'])
-            self.ui.tableResearchQueue.setItem(row_idx, 2, item_service)
-
-            item_client = SortableTableWidgetItem(item['client_name'] or '')
-            self.ui.tableResearchQueue.setItem(row_idx, 3, item_client)
-
-            result_text = item['result_value'] if item['result_value'] else 'Не выполнено'
-            item_result = SortableTableWidgetItem(result_text)
-            item_result.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.ui.tableResearchQueue.setItem(row_idx, 4, item_result)
-
-        self.ui.tableResearchQueue.setSortingEnabled(True)
+        populate_table(self.ui.tableResearchQueue, research, self._fill_research_row)
         self.ui.tableResearchQueue.resizeRowsToContents()
+
+    @staticmethod
+    def _fill_research_row(table, row_idx, item):
+        table.setItem(row_idx, 0, make_item(
+            item['order_id'], center=True, sort_value=item['order_id'],
+            user_data=item['order_service_id']))
+        table.setItem(row_idx, 1, make_item(item['vessel_code']))
+        table.setItem(row_idx, 2, make_item(item['service_name']))
+        table.setItem(row_idx, 3, make_item(item['client_name']))
+        table.setItem(row_idx, 4, make_item(
+            item['result_value'] or 'Не выполнено', center=True))
 
     def _search_research(self):
         """Фильтрация очереди исследований по тексту и наличию результата."""
         query = self.ui.editResearchSearch.text().strip().lower()
         filter_mode = self.ui.comboResearchFilter.currentIndex()
 
-        research = report_repo.get_research_queue()
+        research = self.report_service.get_research_queue()
         filtered = []
         for item in research:
             match_text = True
@@ -1062,7 +910,7 @@ class MainWindow(QMainWindow):
         # Отключаем навигацию в QTextBrowser
         self.ui.reportPreviewBrowser.setOpenLinks(False)
         self.ui.reportPreviewBrowser.setReadOnly(True)
-        
+
         # Стили
         self.ui.reportPreviewBrowser.setStyleSheet("""
             QTextBrowser {
@@ -1087,8 +935,6 @@ class MainWindow(QMainWindow):
 
     def _add_delete_report_button(self):
         """Добавить кнопку удаления отчёта рядом с заголовком."""
-        from PyQt6.QtWidgets import QPushButton, QHBoxLayout
-        from PyQt6.QtCore import Qt
 
         btn_delete = QPushButton("Удалить выбранные")
         btn_delete.setStyleSheet("""
@@ -1132,7 +978,6 @@ class MainWindow(QMainWindow):
         """Удалить выбранный отчёт."""
         row = self.ui.tableRecentReports.currentRow()
         if row < 0:
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "Удаление", "Выберите отчёт для удаления.")
             return
 
@@ -1144,12 +989,9 @@ class MainWindow(QMainWindow):
         report_num = item.text()
 
         if not file_path:
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "Ошибка", "Путь к файлу не найден.")
             return
 
-        import os
-        from PyQt6.QtWidgets import QMessageBox
 
         reply = QMessageBox.question(
             self, "Подтверждение",
@@ -1171,7 +1013,7 @@ class MainWindow(QMainWindow):
     # ---------- выбор заказа ----------
 
     def _load_reports_combo(self):
-        orders = order_repo.get_all_orders()
+        orders = self.order_service.get_all_orders()
         self.ui.comboreportsOrder.blockSignals(True)
         self.ui.comboreportsOrder.clear()
         for order in orders:
@@ -1187,19 +1029,13 @@ class MainWindow(QMainWindow):
             self._update_report_preview(order_id)
 
     def _load_report_research_table(self, order_id):
-        rows = report_repo.get_report_research(order_id)
-        self.ui.tableReportResearch.setSortingEnabled(False)
-        self.ui.tableReportResearch.setRowCount(0)
-        if rows:
-            self.ui.tableReportResearch.setRowCount(len(rows))
-            for row_idx, r in enumerate(rows):
-                self.ui.tableReportResearch.setItem(
-                    row_idx, 0, QTableWidgetItem(r['service_name']))
-                self.ui.tableReportResearch.setItem(
-                    row_idx, 1, QTableWidgetItem(r['result_value'] or 'Не выполнено'))
-                self.ui.tableReportResearch.setItem(
-                    row_idx, 2, QTableWidgetItem(r['conclusion'] or '-'))
-        self.ui.tableReportResearch.setSortingEnabled(True)
+        rows = self.report_service.get_report_research(order_id)
+        def fill_row(table, row_idx, r):
+            table.setItem(row_idx, 0, make_item(r['service_name']))
+            table.setItem(row_idx, 1, make_item(r['result_value'] or 'Не выполнено'))
+            table.setItem(row_idx, 2, make_item(r['conclusion'] or '-'))
+
+        populate_table(self.ui.tableReportResearch, rows, fill_row)
         self.ui.tableReportResearch.resizeRowsToContents()
 
     # ---------- встроенный предпросмотр ----------
@@ -1223,20 +1059,20 @@ class MainWindow(QMainWindow):
 
     def _update_report_preview(self, order_id: int):
         """Обновить предпросмотр отчёта."""
-        order = order_repo.get_order(order_id)
+        order = self.order_service.get_order(order_id)
         if not order:
             return
 
         self._preview_order_id = order_id
         self._current_report_path = None
 
-        existing = report_repo.get_report_by_order(order_id)
+        existing = self.report_service.get_report_by_order(order_id)
         if existing:
             report_num = f"ОТЧ-{existing['report_id']:04d}"
             report_date = format_date(existing['report_date'])
             self._current_report_path = existing.get('file_path')
         else:
-            next_id = report_repo.get_next_report_number()
+            next_id = self.report_service.get_next_report_number()
             report_num = f"ОТЧ-{next_id:04d}"
             report_date = datetime.now().strftime('%d.%m.%Y')
 
@@ -1244,7 +1080,7 @@ class MainWindow(QMainWindow):
         vessel_code = order.get('vessel_code', '')
         order_date = format_date(order.get('order_date'))
 
-        research_rows = report_repo.get_report_research(order_id)
+        research_rows = self.report_service.get_report_research(order_id)
 
         # HTML таблицы
         table_rows_html = ''
@@ -1385,7 +1221,7 @@ class MainWindow(QMainWindow):
         client_name = order.get('client_name') or ''
         details = ''
         try:
-            info = client_repo.get_client_details(order['client_id'])
+            info = self.client_service.get_client_details(order['client_id'])
             if info:
                 parts = [info.get('phone'), info.get('email')]
                 details = ", ".join(p for p in parts if p)
@@ -1407,7 +1243,6 @@ class MainWindow(QMainWindow):
         """Загрузить отчёты из папки reports."""
         import re
         from pathlib import Path
-        from datetime import datetime
 
         reports_dir = Path(__file__).parent / 'reports'
         if not reports_dir.exists():
@@ -1426,7 +1261,7 @@ class MainWindow(QMainWindow):
 
         for row_idx, pdf_file in enumerate(pdf_files):
             filename = pdf_file.stem  # ОТЧ-0013
-            
+
             # Парсим номер отчёта из имени файла
             match = re.match(r'ОТЧ-(\d+)', filename)
             if match:
@@ -1435,18 +1270,16 @@ class MainWindow(QMainWindow):
             else:
                 report_num = f"ОТЧ-{row_idx + 1:04d}"
                 report_id = None
-            
+
             # Значения по умолчанию
-            order_number = 'Неизвестно'   # ← переименовали, теперь это vessel_code
+            order_number = 'Неизвестно'
             employee_name = 'Неизвестно'
             report_date = ''
-            
+
             if report_id:
                 try:
-                    rep = report_repo.get_report(report_id)
+                    rep = self.report_service.get_report(report_id)
                     if rep:
-                        # rep — словарь: {'report_id': ..., 'order_id': ..., 'vessel_code': 'С-0001',
-                        #                'employee_name': 'Администратор системы', ...}
                         order_number = rep.get('vessel_code') or 'Неизвестно'
                         employee_name = rep.get('employee_name') or 'Неизвестно'
                         report_date_obj = rep.get('report_date')
@@ -1455,9 +1288,9 @@ class MainWindow(QMainWindow):
                                 report_date = report_date_obj.strftime('%d.%m.%Y')
                             else:
                                 report_date = str(report_date_obj)
-                except Exception as e:
-                    print(f"[DEBUG] Ошибка получения данных отчёта {report_id}: {e}")
-            
+                except Exception as exc:
+                    logger.debug("Ошибка получения данных отчёта %s: %s", report_id, exc)
+
             # Если дата не из БД — берём из файла
             if not report_date:
                 file_time = datetime.fromtimestamp(pdf_file.stat().st_mtime)
@@ -1474,26 +1307,15 @@ class MainWindow(QMainWindow):
         self.ui.tableRecentReports.setSortingEnabled(True)
 
     def _populate_recent_reports_table(self, rows):
-        self.ui.tableRecentReports.setSortingEnabled(False)
-        self.ui.tableRecentReports.setRowCount(0)
-        if rows:
-            self.ui.tableRecentReports.setRowCount(len(rows))
-            for row_idx, r in enumerate(rows):
-                item_report_id = SortableTableWidgetItem(
-                    f"ОТЧ-{r['report_id']:04d}", sort_value=r['report_id'])
-                self.ui.tableRecentReports.setItem(row_idx, 0, item_report_id)
+        def fill_row(table, row_idx, r):
+            table.setItem(row_idx, 0, make_item(
+                f"ОТЧ-{r['report_id']:04d}", sort_value=r['report_id']))
+            table.setItem(row_idx, 1, make_item(r['vessel_code']))
+            table.setItem(row_idx, 2, make_item(
+                format_date(r['report_date']), center=True, sort_value=r['report_date']))
+            table.setItem(row_idx, 3, make_item(r['employee_name']))
 
-                item_vessel = SortableTableWidgetItem(r['vessel_code'])
-                self.ui.tableRecentReports.setItem(row_idx, 1, item_vessel)
-
-                item_date = SortableTableWidgetItem(
-                    format_date(r['report_date']), sort_value=r['report_date'])
-                item_date.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.ui.tableRecentReports.setItem(row_idx, 2, item_date)
-
-                item_employee = SortableTableWidgetItem(r['employee_name'])
-                self.ui.tableRecentReports.setItem(row_idx, 3, item_employee)
-        self.ui.tableRecentReports.setSortingEnabled(True)
+        populate_table(self.ui.tableRecentReports, rows, fill_row)
 
     # ---------- действия ----------
 
@@ -1507,18 +1329,22 @@ class MainWindow(QMainWindow):
 
         try:
             # Сначала создаём запись в БД и получаем report_id
-            report_id = report_repo.create_report(
+            report_id = self.report_service.create_report(
                 order_id, Session.get_user_id(), None)  # file_path пока None
-            
+
             # Теперь генерируем PDF с правильным именем
             from report_generator import generate_report_pdf
-            filepath = generate_report_pdf(order_id, report_id)
-            
+            filepath = generate_report_pdf(
+                order_id, report_id,
+                order_service=self.order_service,
+                report_service=self.report_service,
+            )
+
             # Обновляем запись в БД с реальным путём
-            report_repo.update_report_path(report_id, filepath)
-            
+            self.report_service.update_report_path(report_id, filepath)
+
             self._current_report_path = filepath
-            
+
             # Обновляем номер отчёта в предпросмотре
             self.ui.lblDocumentNumber.setText(
                 f"Номер отчёта: ОТЧ-{report_id:04d} от {datetime.now().strftime('%d.%m.%Y')}")
@@ -1543,7 +1369,7 @@ class MainWindow(QMainWindow):
             if item:
                 try:
                     report_id = int(item.text().replace("ОТЧ-", ""))
-                    rep = report_repo.get_report(report_id)
+                    rep = self.report_service.get_report(report_id)
                     if rep and rep.get('file_path'):
                         return rep['file_path']
                 except ValueError:
@@ -1554,7 +1380,7 @@ class MainWindow(QMainWindow):
 
         order_id = self.ui.comboreportsOrder.currentData()
         if order_id:
-            rep = report_repo.get_report_by_order(order_id)
+            rep = self.report_service.get_report_by_order(order_id)
             if rep and rep.get('file_path'):
                 return rep['file_path']
         return None
@@ -1566,14 +1392,7 @@ class MainWindow(QMainWindow):
                                 "Файл отчёта не найден.\nСначала нажмите «Сформировать отчёт».")
             return
         try:
-            if sys.platform == 'win32':
-                os.startfile(path)
-            elif sys.platform == 'darwin':
-                import subprocess
-                subprocess.Popen(['open', path])
-            else:
-                import subprocess
-                subprocess.Popen(['xdg-open', path])
+            open_file(path)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл:\n{e}")
 
@@ -1584,11 +1403,7 @@ class MainWindow(QMainWindow):
                                 "Файл отчёта не найден.\nСначала нажмите «Сформировать отчёт».")
             return
         try:
-            if sys.platform == 'win32':
-                os.startfile(path, 'print')
-            else:
-                import subprocess
-                subprocess.Popen(['lp', path])
+            print_file(path)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось отправить на печать:\n{e}")
 
@@ -1597,9 +1412,7 @@ class MainWindow(QMainWindow):
         vlay = self.ui.reportCreationFrame.layout()
         if not vlay:
             return
-        # Извлекаем кнопку из текущего вертикального layout
         vlay.removeWidget(self.ui.btnCreateReport)
-        # Оборачиваем в горизонтальный layout со stretch по бокам = центрирование
         hlay = QHBoxLayout()
         hlay.addStretch()
         hlay.addWidget(self.ui.btnCreateReport)
@@ -1609,20 +1422,16 @@ class MainWindow(QMainWindow):
     def _setup_report_preview_browser(self):
         """Создать QTextBrowser для предпросмотра отчёта вместо набора QLabel'ов."""
         from PyQt6.QtWidgets import QTextBrowser
-        from PyQt6.QtCore import Qt
-        
-        # Находим фрейм предпросмотра
+
         preview_frame = self.ui.reportPreviewFrame
         old_layout = preview_frame.layout()
-        
-        # Удаляем старые виджеты из layout (но не сам layout)
+
         if old_layout:
             while old_layout.count():
                 item = old_layout.takeAt(0)
                 if item.widget():
                     item.widget().deleteLater()
-        
-        # Создаём QTextBrowser
+
         self.report_preview_browser = QTextBrowser()
         self.report_preview_browser.setOpenExternalLinks(False)
         self.report_preview_browser.setStyleSheet("""
@@ -1636,22 +1445,19 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # Растягиваем браузер на весь доступный размер
         self.report_preview_browser.setMinimumHeight(600)
-        # Добавляем в layout
         old_layout.addWidget(self.report_preview_browser)
 
     def _create_employees_page(self):
         """Создать страницу управления сотрудниками."""
-        from pages.employees_page import EmployeesPage
-        
-        # Создаём страницу
-        self.employees_page = EmployeesPage()
-        
-        # Добавляем напрямую в stackedWidget (без QScrollArea)
+        self.employees_page = EmployeesPage(
+            employee_service=self.employee_service
+        )
+
         self.ui.stackedWidget.addWidget(self.employees_page)
-        
-        # Сохраняем индекс страницы
         self.employees_page_index = self.ui.stackedWidget.indexOf(self.employees_page)
-        
-        print(f"[DEBUG] Страница сотрудников добавлена с индексом: {self.employees_page_index}")
+
+        logger.debug("Страница сотрудников добавлена с индексом: %d", self.employees_page_index)
+
+
+__all__ = ["MainWindow"]
