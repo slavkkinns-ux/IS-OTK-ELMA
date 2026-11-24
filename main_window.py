@@ -1354,7 +1354,9 @@ class MainWindow(QMainWindow):
 
         pdf_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
 
+        from PyQt6.QtWidgets import QAbstractItemView
         self.ui.tableRecentReports.setSortingEnabled(False)
+        self.ui.tableRecentReports.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.ui.tableRecentReports.setRowCount(len(pdf_files))
 
         for row_idx, pdf_file in enumerate(pdf_files):
