@@ -135,7 +135,7 @@ class MainWindow(QMainWindow):
         sidebar_frame.setMaximumWidth(16777215)
         sidebar_frame.setMinimumWidth(200)
 
-        # Находим внутренний layout с кнопками (sidebarLayout)
+        # Находим внутренний sidebarLayout для настройки spacer'а
         inner_layout = None
         for i in range(sidebar_layout.count()):
             item = sidebar_layout.itemAt(i)
@@ -172,21 +172,19 @@ class MainWindow(QMainWindow):
 
         # Кнопка логов — только для администратора (toggle)
         is_admin = self._is_admin()
-        print(f"[DEBUG] _is_admin() = {is_admin}")
         if is_admin:
-            print("[DEBUG] Adding logs button")
             self._add_logs_button()
 
         # Добавляем кнопку "Управление сотрудниками" только для админов
         if is_admin:
-            print("[DEBUG] Adding employees button")
             self._add_employees_button()
 
-        # Убираем минимальную высоту у spacer'а, чтобы кнопки прижимались к низу
-        for i in range(inner_layout.count() if inner_layout else 0):
-            item = inner_layout.itemAt(i)
-            if item and item.spacerItem():
-                item.spacerItem().changeSize(20, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        # Убираем минимальную высоту у spacer'а в sidebarLayout, чтобы кнопки прижимались к низу
+        if inner_layout:
+            for i in range(inner_layout.count()):
+                item = inner_layout.itemAt(i)
+                if item and item.spacerItem():
+                    item.spacerItem().changeSize(20, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
 
     def _is_admin(self) -> bool:
@@ -209,30 +207,14 @@ class MainWindow(QMainWindow):
         self.btn_logs.setCheckable(True)
         self.btn_logs.clicked.connect(self._toggle_logs)
 
-        # Вставляем перед кнопкой "Выйти"
+        # Вставляем перед кнопкой "Выйти" в основной layout сайдбара (verticalLayout_3)
         sidebar_layout = self.ui.sidebarFrame.layout()
-        print(f"[DEBUG] _add_logs_button: sidebar_layout = {sidebar_layout}")
         if sidebar_layout:
-            # Находим внутренний sidebarLayout
-            inner_layout = None
             for i in range(sidebar_layout.count()):
                 item = sidebar_layout.itemAt(i)
-                if item and item.layout() and item.layout().objectName() == "sidebarLayout":
-                    inner_layout = item.layout()
-                    break
-
-            print(f"[DEBUG] _add_logs_button: inner_layout = {inner_layout}")
-            if inner_layout:
-                # Находим индекс btnExit в inner_layout
-                for i in range(inner_layout.count()):
-                    item = inner_layout.itemAt(i)
-                    if item and item.widget() == self.ui.btnExit:
-                        print(f"[DEBUG] _add_logs_button: inserting at index {i}")
-                        inner_layout.insertWidget(i, self.btn_logs)
-                        return
-            print("[DEBUG] _add_logs_button: inner_layout not found or btnExit not found")
-        else:
-            print("[DEBUG] _add_logs_button: sidebar_layout is None")
+                if item and item.widget() == self.ui.btnExit:
+                    sidebar_layout.insertWidget(i, self.btn_logs)
+                    return
 
 
     def _add_employees_button(self):
@@ -248,28 +230,14 @@ class MainWindow(QMainWindow):
         self.btn_employees.setCheckable(True)
         self.btn_employees.clicked.connect(self._on_employees_clicked)
 
-        # Вставляем перед кнопкой "Выйти" во внутренний layout
+        # Вставляем перед кнопкой "Выйти" в основной layout сайдбара (verticalLayout_3)
         sidebar_layout = self.ui.sidebarFrame.layout()
-        print(f"[DEBUG] _add_employees_button: sidebar_layout = {sidebar_layout}")
         if sidebar_layout:
-            inner_layout = None
             for i in range(sidebar_layout.count()):
                 item = sidebar_layout.itemAt(i)
-                if item and item.layout() and item.layout().objectName() == "sidebarLayout":
-                    inner_layout = item.layout()
-                    break
-
-            print(f"[DEBUG] _add_employees_button: inner_layout = {inner_layout}")
-            if inner_layout:
-                for i in range(inner_layout.count()):
-                    item = inner_layout.itemAt(i)
-                    if item and item.widget() == self.ui.btnExit:
-                        print(f"[DEBUG] _add_employees_button: inserting at index {i}")
-                        inner_layout.insertWidget(i, self.btn_employees)
-                        return
-            print("[DEBUG] _add_employees_button: inner_layout not found or btnExit not found")
-        else:
-            print("[DEBUG] _add_employees_button: sidebar_layout is None")
+                if item and item.widget() == self.ui.btnExit:
+                    sidebar_layout.insertWidget(i, self.btn_employees)
+                    return
 
 
     def _toggle_logs(self, checked: bool):
