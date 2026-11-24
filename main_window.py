@@ -221,8 +221,8 @@ class MainWindow(QMainWindow):
         """Добавить кнопку управления сотрудниками перед кнопкой выхода."""
         from PyQt6.QtWidgets import QSizePolicy
 
-        self.btn_employees = QPushButton("Управление сотрудниками")
-        self.btn_employees.setStyleSheet(SIDEBAR_BUTTON_SECONDARY_STYLE)
+        self.btn_employees = QPushButton("Сотрудники")
+        self.btn_employees.setStyleSheet(SIDEBAR_BUTTON_STYLE)
         self.btn_employees.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.btn_employees.setMinimumWidth(0)
         self.btn_employees.setMinimumHeight(42)
