@@ -2,7 +2,7 @@
 DB_CONFIG = {
     'host': 'localhost',
     'port': 3306,
-    'user': 'your_user',
+    'user': 'root',
     'password': 'your_password',
     'database': 'elma',
     'charset': 'utf8mb4'
