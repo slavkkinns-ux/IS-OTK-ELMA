@@ -14,13 +14,14 @@ from ui.login_client_ui import Ui_ClientLoginWindow
 from session import Session, Role
 from services.client_service import ClientService
 from db import client_repo as _default_client_repo
+from utils.files import get_resource_path
 
 logger = logging.getLogger(__name__)
 
 
 def _get_logo_path(filename: str) -> str:
-    """Абсолютный путь к файлу в папке logo/ (рядом с этим файлом)."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logo', filename)
+    """Абсолютный путь к файлу в папке logo/ (работает в dev и в EXE)."""
+    return get_resource_path(os.path.join('logo', filename))
 
 
 def _render_svg(filename: str, size: int = 20) -> QIcon:

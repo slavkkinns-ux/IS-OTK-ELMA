@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QDialog, QSizePolicy
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QPixmap
 from ui.choose_login_ui import Ui_ChooseLoginDialog
+from utils.files import get_resource_path
 
 
 class ChooseLoginDialog(QDialog):
@@ -19,8 +20,8 @@ class ChooseLoginDialog(QDialog):
         self.ui.btnClientLogin.clicked.connect(self._choose_client)
 
     def _get_logo_path(self, filename: str) -> str:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(base_dir, 'logo', filename)
+        """Абсолютный путь к файлу в папке logo/ (работает в dev и в EXE)."""
+        return get_resource_path(os.path.join('logo', filename))
 
     def _fix_icons(self):
         """Заменяет pixmap у иконок и выравнивает их по центру карточки."""

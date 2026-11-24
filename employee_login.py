@@ -12,13 +12,14 @@ from ui.login_employee_ui import Ui_EmployeeLoginDialog
 from session import Session
 from services.employee_service import EmployeeService
 from db import employee_repo as _default_employee_repo
+from utils.files import get_resource_path
 
 logger = logging.getLogger(__name__)
 
 
 def _get_logo_path(filename: str) -> str:
-    """Абсолютный путь к файлу в папке logo/ (рядом с этим файлом)."""
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logo', filename)
+    """Абсолютный путь к файлу в папке logo/ (работает в dev и в EXE)."""
+    return get_resource_path(os.path.join('logo', filename))
 
 
 def _render_svg(filename: str, size: int = 20) -> QIcon:
