@@ -230,6 +230,9 @@ class MainWindow(QMainWindow):
         self.btn_employees.setCheckable(True)
         self.btn_employees.clicked.connect(self._on_employees_clicked)
 
+        # Добавляем в ту же QButtonGroup, чтобы работала взаимная блокировка с навигационными кнопками
+        self.nav_group.addButton(self.btn_employees)
+
         # Вставляем перед кнопкой "Выйти" в основной layout сайдбара (verticalLayout_3)
         sidebar_layout = self.ui.sidebarFrame.layout()
         if sidebar_layout:
@@ -271,13 +274,9 @@ class MainWindow(QMainWindow):
             self.btn_logs.blockSignals(False)
 
     def _on_employees_clicked(self, checked: bool):
-        """Обработка клика по кнопке 'Управление сотрудниками'."""
+        """Обработка клика по кнопке 'Сотрудники'."""
         if checked:
             self.show_page(self.employees_page_index)
-        else:
-            # При повторном клике — возврат на главную
-            self.ui.btnHome.setChecked(True)
-            self.show_page(self.ui.stackedWidget.indexOf(self.ui.pageHome))
 
     def _on_page_changed(self, index):
         """Синхронизация состояния кнопок при смене страницы (вызов извне)."""
