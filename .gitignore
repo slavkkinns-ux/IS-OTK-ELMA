@@ -36,6 +36,7 @@ config.py
 config.json
 first_login.json
 logs/
+tests
 *.log
 *.sqlite
 *.db
