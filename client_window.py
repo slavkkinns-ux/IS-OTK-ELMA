@@ -183,12 +183,23 @@ class ClientWindow(QMainWindow):
             table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def _load_all_data(self):
+        self._setup_welcome_message()
         self._load_home_stats()
         self._load_home_orders()
         self._load_my_orders()
         self._load_results()
         self._load_documents()
         self._load_profile()
+
+    def _setup_welcome_message(self):
+        """Настроить приветствие на главной странице клиента."""
+        from session import Session
+        if Session.is_first_login():
+            self.ui.pageTitle.setText("Добро пожаловать в личный кабинет клиента!")
+            Session.mark_first_login_done()
+        else:
+            display_name = Session.get_display_name()
+            self.ui.pageTitle.setText(f"С возвращением, {display_name}!")
 
     def _load_home_stats(self):
         user_id = Session.get_user_id()

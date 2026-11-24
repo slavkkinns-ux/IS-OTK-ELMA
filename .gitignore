@@ -33,6 +33,7 @@ Desktop.ini
 
 # Project specific
 config.py
+config.json
 logs/
 *.log
 *.sqlite

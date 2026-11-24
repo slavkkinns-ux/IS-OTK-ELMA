@@ -254,3 +254,87 @@ QFrame[frameShape="4"] { /* HLine */
     max-height: 1px;
     min-height: 1px;
 }
+
+/* QDateEdit и QCalendarWidget — исправление чёрного фона */
+QDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: #000000;
+}
+
+QDateEdit:focus {
+    border: 1px solid #3498db;
+}
+
+QDateEdit::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #cccccc;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    background-color: #f5f5f5;
+}
+
+QDateEdit::down-arrow {
+    image: url(:/qt-project.org/styles/commonstyle/images/standardbutton-down-16.png);
+    width: 12px;
+    height: 12px;
+}
+
+QCalendarWidget {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+}
+
+QCalendarWidget QWidget {
+    alternate-background-color: #f5f5f5;
+    background-color: #ffffff;
+    color: #000000;
+}
+
+QCalendarWidget QAbstractItemView:enabled {
+    background-color: #ffffff;
+    color: #000000;
+    selection-background-color: #3498db;
+    selection-color: #ffffff;
+}
+
+QCalendarWidget QMenu {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #cccccc;
+}
+
+QCalendarWidget QToolButton {
+    background-color: #f5f5f5;
+    color: #000000;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-weight: bold;
+}
+
+QCalendarWidget QToolButton:hover {
+    background-color: #e0e0e0;
+}
+
+QCalendarWidget QToolButton:pressed {
+    background-color: #d0d0d0;
+}
+
+QCalendarWidget QSpinBox {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+QCalendarWidget QSpinBox:focus {
+    border: 1px solid #3498db;
+}

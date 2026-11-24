@@ -1,7 +1,45 @@
 """Точка входа в приложение ИС ОТК."""
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QDialog, QStyleFactory
+import subprocess
+import importlib.util
+
+def _ensure_dependencies() -> bool:
+    """Проверить и установить зависимости из requirements.txt.
+    
+    Returns:
+        True если зависимости установлены успешно, False при ошибке.
+    """
+    req_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements.txt")
+    if not os.path.exists(req_path):
+        return True
+    
+    try:
+        with open(req_path, "r", encoding="utf-8") as f:
+            requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    except Exception:
+        return True
+    
+    missing = []
+    for req in requirements:
+        pkg_name = req.split(">=")[0].split("==")[0].split("<=")[0].split(">")[0].split("<")[0].split("~=")[0].strip()
+        import_name = pkg_name.replace("-", "_")
+        if importlib.util.find_spec(import_name) is None:
+            missing.append(req)
+    
+    if not missing:
+        return True
+    
+    try:
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install", "--quiet", *missing
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+from PyQt6.QtWidgets import QApplication, QDialog, QStyleFactory, QMessageBox
 from main_window import MainWindow
 from client_window import ClientWindow
 from choose_login import ChooseLoginDialog
@@ -28,6 +66,18 @@ def load_theme(app, theme_name="light"):
 
 
 def run_app():
+    # Проверить и установить зависимости перед запуском
+    if not _ensure_dependencies():
+        # Если не получилось установить — показываем ошибку и выходим
+        app = QApplication(sys.argv)  # нужно для QMessageBox
+        QMessageBox.critical(
+            None,
+            "Ошибка зависимостей",
+            "Не удалось автоматически установить необходимые пакеты.\n"
+            "Установите их вручную:\n  pip install -r requirements.txt"
+        )
+        sys.exit(1)
+
     # Установить глобальный обработчик исключений
     install_excepthook()
 

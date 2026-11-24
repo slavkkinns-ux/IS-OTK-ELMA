@@ -4,6 +4,7 @@ import os
 import json
 
 SESSION_FILE = "session.json"
+FIRST_LOGIN_FILE = "first_login.json"
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,44 @@ class Session:
     @classmethod
     def init(cls):
         cls._load_from_file()
+
+    @classmethod
+    def is_first_login(cls) -> bool:
+        """Проверить, первый ли это вход пользователя."""
+        if not cls._current_user:
+            return True
+        user_id = cls._current_user.get("user_id")
+        if not user_id:
+            return True
+        try:
+            if not os.path.exists(FIRST_LOGIN_FILE):
+                return True
+            with open(FIRST_LOGIN_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return str(user_id) not in data.get("logged_in_users", [])
+        except Exception:
+            return True
+
+    @classmethod
+    def mark_first_login_done(cls):
+        """Отметить, что первый вход уже пройден для текущего пользователя."""
+        if not cls._current_user:
+            return
+        user_id = cls._current_user.get("user_id")
+        if not user_id:
+            return
+        try:
+            data = {"logged_in_users": []}
+            if os.path.exists(FIRST_LOGIN_FILE):
+                with open(FIRST_LOGIN_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            logged_in = set(data.get("logged_in_users", []))
+            logged_in.add(str(user_id))
+            data["logged_in_users"] = list(logged_in)
+            with open(FIRST_LOGIN_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            logger.error("Ошибка сохранения флага первого входа: %s", exc)
 
     @classmethod
     def set_user(cls, login, role, display_name=None, user_id=None,

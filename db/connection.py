@@ -2,6 +2,8 @@
 import pymysql
 import time
 import hashlib
+import json
+import os
 
 _connection = None
 _config = None
@@ -9,7 +11,7 @@ _last_error = None
 
 
 def _load_config(force_reload: bool = False):
-    """Загружает параметры подключения из config.py."""
+    """Загружает параметры подключения из config.json (приоритет) или config.py."""
     global _config
     if _config is not None and not force_reload:
         return _config
@@ -25,6 +27,24 @@ def _load_config(force_reload: bool = False):
         'connect_timeout': 5,
     }
 
+    # 1. Пробуем загрузить из config.json (рядом с исполняемым файлом или в корне проекта)
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_json_path = os.path.join(base_dir, 'config.json')
+    
+    if os.path.exists(config_json_path):
+        try:
+            with open(config_json_path, 'r', encoding='utf-8') as f:
+                json_config = json.load(f)
+            for key in ('host', 'port', 'user', 'password', 'database', 'charset'):
+                if key in json_config:
+                    cfg[key] = json_config[key]
+            cfg['port'] = int(cfg['port'])
+            _config = cfg
+            return _config
+        except Exception:
+            pass  # Если не получилось — пробуем config.py
+
+    # 2. Fallback на config.py (для совместимости)
     try:
         import config
     except ImportError:

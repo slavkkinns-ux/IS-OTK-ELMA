@@ -58,14 +58,18 @@ def populate_table(
     rows: Sequence[dict[str, Any]] | None,
     fill_row: Callable[[QTableWidget, int, dict[str, Any]], None],
     sorting: bool = True,
+    editable: bool = False,
 ) -> None:
     """Заполнить QTableWidget строками.
 
     Отключает сортировку на время заполнения (иначе строки «прыгают»),
     очищает таблицу и вызывает ``fill_row(table, row_idx, row)`` для каждой записи.
     ``sorting=False`` оставляет сортировку выключенной (для таблиц с cell-виджетами).
+    ``editable=True`` разрешает редактирование ячеек (по умолчанию — только чтение).
     """
+    from PyQt6.QtWidgets import QAbstractItemView
     table.setSortingEnabled(False)
+    table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers if not editable else QAbstractItemView.EditTrigger.DoubleClicked)
     table.setRowCount(0)
     if rows:
         table.setRowCount(len(rows))

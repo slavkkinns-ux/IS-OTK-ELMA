@@ -153,12 +153,32 @@ class ConnectionDialog(QDialog):
         import subprocess
         import sys
         import os
-        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.py')
-        if os.path.exists(config_path):
-            if sys.platform == 'win32':
-                os.startfile(config_path)
-            else:
-                subprocess.Popen(['xdg-open', config_path])
+        import json
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        config_json_path = os.path.join(base_dir, 'config.json')
+        
+        # Если config.json не существует — создаём пустой шаблон
+        if not os.path.exists(config_json_path):
+            default_config = {
+                "host": "localhost",
+                "port": 3306,
+                "user": "root",
+                "password": "",
+                "database": "elma",
+                "charset": "utf8mb4"
+            }
+            try:
+                with open(config_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(default_config, f, ensure_ascii=False, indent=4)
+            except Exception as e:
+                self._show_error(f"Не удалось создать config.json:\n{e}")
+                return
+        
+        # Открываем config.json в редакторе по умолчанию
+        if sys.platform == 'win32':
+            os.startfile(config_json_path)
+        else:
+            subprocess.Popen(['xdg-open', config_json_path])
 
     def closeEvent(self, event):
         if self._thread and self._thread.isRunning():

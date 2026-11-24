@@ -94,9 +94,11 @@ class MainWindow(QMainWindow):
         self._log_window = None
         self._apply_role_permissions()
         if self._is_admin():
-             self._create_employees_page()
+            self._create_employees_page()
         self._setup_sidebar()
         self._setup_tables()
+        # Синхронизация кнопок сайдбара со stackedWidget
+        self.ui.stackedWidget.currentChanged.connect(self._on_page_changed)
         self._setup_home_tab()
         self._setup_orders_tab()
         self._setup_clients_tab()
@@ -125,6 +127,22 @@ class MainWindow(QMainWindow):
         """Настройка бокового меню и стилей кнопок — адаптивные, растягиваются по ширине sidebar."""
         from PyQt6.QtWidgets import QSizePolicy
 
+        # Сайдбар делаем прокручиваемым, чтобы все кнопки влезали
+        sidebar_frame = self.ui.sidebarFrame
+        sidebar_layout = sidebar_frame.layout()
+
+        # Убираем фиксированную максимальную ширину сайдбара (если задана в .ui)
+        sidebar_frame.setMaximumWidth(16777215)
+        sidebar_frame.setMinimumWidth(200)
+
+        # Находим внутренний layout с кнопками (sidebarLayout)
+        inner_layout = None
+        for i in range(sidebar_layout.count()):
+            item = sidebar_layout.itemAt(i)
+            if item and item.layout() and item.layout().objectName() == "sidebarLayout":
+                inner_layout = item.layout()
+                break
+
         # Применяем единый стиль ко всем кнопкам навигации
         nav_buttons = [
             self.ui.btnHome, self.ui.btnOrders, self.ui.btnClients,
@@ -133,8 +151,8 @@ class MainWindow(QMainWindow):
         for btn in nav_buttons:
             btn.setStyleSheet(SIDEBAR_BUTTON_STYLE)
             btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-            # Убираем минимальную ширину, заданную в .ui, и разрешаем растягиваться
             btn.setMinimumWidth(0)
+            btn.setMinimumHeight(42)
             btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.nav_group = QButtonGroup(self)
@@ -148,16 +166,23 @@ class MainWindow(QMainWindow):
         self.ui.btnExit.setStyleSheet(SIDEBAR_DANGER_BUTTON_STYLE)
         self.ui.btnExit.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.ui.btnExit.setMinimumWidth(0)
+        self.ui.btnExit.setMinimumHeight(42)
         self.ui.btnExit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.ui.btnExit.clicked.connect(self.logout)
 
-        # Кнопка логов — только для администратора
+        # Кнопка логов — только для администратора (toggle)
         if self._is_admin():
             self._add_logs_button()
 
         # Добавляем кнопку "Управление сотрудниками" только для админов
         if self._is_admin():
             self._add_employees_button()
+
+        # Убираем минимальную высоту у spacer'а, чтобы кнопки прижимались к низу
+        for i in range(inner_layout.count() if inner_layout else 0):
+            item = inner_layout.itemAt(i)
+            if item and item.spacerItem():
+                item.spacerItem().changeSize(20, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
 
     def _is_admin(self) -> bool:
@@ -168,65 +193,123 @@ class MainWindow(QMainWindow):
 
 
     def _add_logs_button(self):
-        """Добавить кнопку просмотра логов в нижнюю часть sidebar."""
+        """Добавить кнопку просмотра логов в нижнюю часть sidebar (toggle)."""
         from PyQt6.QtWidgets import QSizePolicy
 
-        btn_logs = QPushButton("📋 Логи")
-        btn_logs.setStyleSheet(SIDEBAR_BUTTON_SECONDARY_STYLE)
-        btn_logs.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        btn_logs.setMinimumWidth(0)
-        btn_logs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        btn_logs.clicked.connect(self._show_logs)
+        self.btn_logs = QPushButton("📋 Логи")
+        self.btn_logs.setStyleSheet(SIDEBAR_BUTTON_SECONDARY_STYLE)
+        self.btn_logs.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.btn_logs.setMinimumWidth(0)
+        self.btn_logs.setMinimumHeight(42)
+        self.btn_logs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.btn_logs.setCheckable(True)
+        self.btn_logs.clicked.connect(self._toggle_logs)
 
-        # Ищем layout sidebar и добавляем кнопку перед кнопкой выхода
+        # Вставляем перед кнопкой "Выйти"
         sidebar_layout = self.ui.sidebarFrame.layout()
         if sidebar_layout:
-            # Находим индекс кнопки выхода
+            # Находим внутренний sidebarLayout
+            inner_layout = None
             for i in range(sidebar_layout.count()):
                 item = sidebar_layout.itemAt(i)
-                if item and item.widget() == self.ui.btnExit:
-                    sidebar_layout.insertWidget(i, btn_logs)
-                    return
-        # Если не нашли — добавляем в конец
-        sidebar_layout.addWidget(btn_logs)
+                if item and item.layout() and item.layout().objectName() == "sidebarLayout":
+                    inner_layout = item.layout()
+                    break
+
+            if inner_layout:
+                # Находим индекс btnExit в inner_layout
+                for i in range(inner_layout.count()):
+                    item = inner_layout.itemAt(i)
+                    if item and item.widget() == self.ui.btnExit:
+                        inner_layout.insertWidget(i, self.btn_logs)
+                        return
 
 
     def _add_employees_button(self):
         """Добавить кнопку управления сотрудниками перед кнопкой выхода."""
         from PyQt6.QtWidgets import QSizePolicy
 
-        btn_employees = QPushButton("Управление сотрудниками")
-        btn_employees.setStyleSheet(SIDEBAR_BUTTON_SECONDARY_STYLE)
-        btn_employees.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-        btn_employees.setMinimumWidth(0)
-        btn_employees.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        btn_employees.clicked.connect(lambda: self.show_page(self.employees_page_index))
+        self.btn_employees = QPushButton("Управление сотрудниками")
+        self.btn_employees.setStyleSheet(SIDEBAR_BUTTON_SECONDARY_STYLE)
+        self.btn_employees.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.btn_employees.setMinimumWidth(0)
+        self.btn_employees.setMinimumHeight(42)
+        self.btn_employees.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.btn_employees.setCheckable(True)
+        self.btn_employees.clicked.connect(self._on_employees_clicked)
 
-        # Вставляем перед кнопкой "Выйти"
+        # Вставляем перед кнопкой "Выйти" во внутренний layout
         sidebar_layout = self.ui.sidebarFrame.layout()
         if sidebar_layout:
-            # Находим индекс кнопки "Выйти"
-            exit_btn_index = -1
+            inner_layout = None
             for i in range(sidebar_layout.count()):
                 item = sidebar_layout.itemAt(i)
-                if item.widget() and "Выйти" in item.widget().text():
-                    exit_btn_index = i
+                if item and item.layout() and item.layout().objectName() == "sidebarLayout":
+                    inner_layout = item.layout()
                     break
 
-            if exit_btn_index >= 0:
-                sidebar_layout.insertWidget(exit_btn_index, btn_employees)
-            else:
-                sidebar_layout.addWidget(btn_employees)
+            if inner_layout:
+                for i in range(inner_layout.count()):
+                    item = inner_layout.itemAt(i)
+                    if item and item.widget() == self.ui.btnExit:
+                        inner_layout.insertWidget(i, self.btn_employees)
+                        return
 
+
+    def _toggle_logs(self, checked: bool):
+        """Toggle-показ/скрытие окна логов."""
+        if checked:
+            self._show_logs()
+        else:
+            self._hide_logs()
 
     def _show_logs(self):
         """Показать окно с логами приложения."""
-        # Создаём окно (или показываем существующее)
         if not hasattr(self, '_log_window') or self._log_window is None:
             self._log_window = LogWidget(self)
+            # При закрытии окна пользователем — сбрасываем чекбокс
+            self._log_window.destroyed.connect(self._on_log_window_closed)
         self._log_window.show()
         self._log_window.raise_()
         self._log_window.activateWindow()
+
+    def _hide_logs(self):
+        """Скрыть окно логов."""
+        if hasattr(self, '_log_window') and self._log_window:
+            self._log_window.close()
+            self._log_window = None
+
+    def _on_log_window_closed(self):
+        """Слот: окно логов закрыто пользователем (крестик)."""
+        if hasattr(self, 'btn_logs') and self.btn_logs:
+            self.btn_logs.blockSignals(True)
+            self.btn_logs.setChecked(False)
+            self.btn_logs.blockSignals(False)
+
+    def _on_employees_clicked(self, checked: bool):
+        """Обработка клика по кнопке 'Управление сотрудниками'."""
+        if checked:
+            self.show_page(self.employees_page_index)
+        else:
+            # При повторном клике — возврат на главную
+            self.ui.btnHome.setChecked(True)
+            self.show_page(self.ui.stackedWidget.indexOf(self.ui.pageHome))
+
+    def _on_page_changed(self, index):
+        """Синхронизация состояния кнопок при смене страницы (вызов извне)."""
+        # Этот метод можно вызывать при программном переключении страниц
+        current_widget = self.ui.stackedWidget.widget(index)
+        if current_widget == getattr(self, 'employees_page', None):
+            if hasattr(self, 'btn_employees') and self.btn_employees:
+                self.btn_employees.blockSignals(True)
+                self.btn_employees.setChecked(True)
+                self.btn_employees.blockSignals(False)
+            # Снимаем чек с основных кнопок навигации
+            for btn in [self.ui.btnHome, self.ui.btnOrders, self.ui.btnClients,
+                        self.ui.btnResearch, self.ui.btnReports]:
+                btn.blockSignals(True)
+                btn.setChecked(False)
+                btn.blockSignals(False)
 
     def _apply_role_permissions(self):
         """Применение прав доступа в зависимости от роли пользователя."""
@@ -341,6 +424,11 @@ class MainWindow(QMainWindow):
         page = pages.get(button)
         if page:
             self.ui.stackedWidget.setCurrentWidget(page)
+            # Снимаем чек с кнопки сотрудников при переходе на другие страницы
+            if hasattr(self, 'btn_employees') and self.btn_employees:
+                self.btn_employees.blockSignals(True)
+                self.btn_employees.setChecked(False)
+                self.btn_employees.blockSignals(False)
 
     # =========================================================================
     # HOME — Главная страница
@@ -350,6 +438,16 @@ class MainWindow(QMainWindow):
         self.ui.lblCurrentOrders.setStyleSheet(
         "color: #17365D; padding: 8px 0; font-size: 16pt; font-weight: bold;")
         self.ui.btnAllOrders.clicked.connect(self._go_to_orders)
+        
+        # Приветствие: первый вход vs возврат
+        from session import Session
+        if Session.is_first_login():
+            self.ui.lblWelcome.setText("Добро пожаловать в информационную систему отдела технического контроля")
+            Session.mark_first_login_done()
+        else:
+            display_name = Session.get_display_name()
+            self.ui.lblWelcome.setText(f"С возвращением, {display_name}!")
+        
         self._load_home_stats()
         self._load_recent_orders()
 
