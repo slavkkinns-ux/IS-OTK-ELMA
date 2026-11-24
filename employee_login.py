@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from ui.login_employee_ui import Ui_EmployeeLoginDialog
-from session import Session
+from session import Session, ROLE_NAME_MAP
 from services.employee_service import EmployeeService
 from db import employee_repo as _default_employee_repo
 from utils.files import get_resource_path
@@ -138,9 +138,12 @@ class EmployeeLoginDialog(QDialog):
             user = self.employee_service.authenticate_employee(email, password)
 
             if user:
+                # Маппим роль из БД (русское название) на внутренний код
+                db_role = user['role']
+                internal_role = ROLE_NAME_MAP.get(db_role, db_role)
                 Session.set_user(
                     login=user['login'],
-                    role=user['role'],
+                    role=internal_role,
                     display_name=user['full_name'],
                     user_id=user['employee_id'],
                     user_type='employee',
