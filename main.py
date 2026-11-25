@@ -1,35 +1,48 @@
 """Точка входа в приложение ИС ОТК."""
-import sys
+import importlib.util
 import os
 import subprocess
-import importlib.util
+import sys
+
+from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox, QStyleFactory
+
+from choose_login import ChooseLoginDialog
+from client_login import ClientLoginDialog
+from client_window import ClientWindow
+from dialogs.connection_dialog import ConnectionDialog
+from employee_login import EmployeeLoginDialog
+from error_handling import install_excepthook
+from logger import app_logger
+from main_window import MainWindow
+from session import Session
+
 
 def _ensure_dependencies() -> bool:
     """Проверить и установить зависимости из requirements.txt.
-    
+
     Returns:
         True если зависимости установлены успешно, False при ошибке.
     """
     req_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements.txt")
     if not os.path.exists(req_path):
         return True
-    
+
     try:
-        with open(req_path, "r", encoding="utf-8") as f:
+        with open(req_path, encoding="utf-8") as f:
             requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
     except Exception:
         return True
-    
+
     missing = []
     for req in requirements:
         pkg_name = req.split(">=")[0].split("==")[0].split("<=")[0].split(">")[0].split("<")[0].split("~=")[0].strip()
         import_name = pkg_name.replace("-", "_")
         if importlib.util.find_spec(import_name) is None:
             missing.append(req)
-    
+
     if not missing:
         return True
-    
+
     try:
         subprocess.check_call([
             sys.executable, "-m", "pip", "install", "--quiet", *missing
@@ -37,18 +50,6 @@ def _ensure_dependencies() -> bool:
         return True
     except subprocess.CalledProcessError:
         return False
-
-
-from PyQt6.QtWidgets import QApplication, QDialog, QStyleFactory, QMessageBox
-from main_window import MainWindow
-from client_window import ClientWindow
-from choose_login import ChooseLoginDialog
-from employee_login import EmployeeLoginDialog
-from client_login import ClientLoginDialog
-from dialogs.connection_dialog import ConnectionDialog  # <-- диалог подключения к БД
-from session import Session
-from logger import app_logger
-from error_handling import install_excepthook
 
 THEMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles")
 
@@ -59,7 +60,7 @@ def load_theme(app, theme_name="light"):
     if not os.path.exists(theme_path):
         return
     try:
-        with open(theme_path, "r", encoding="utf-8") as f:
+        with open(theme_path, encoding="utf-8") as f:
             app.setStyleSheet(f.read())
     except Exception:
         pass
@@ -109,10 +110,7 @@ def run_app():
             user = Session.get_user()
             user_type = user.get("user_type", "employee") if user else "employee"
 
-            if user_type == "client":
-                window = ClientWindow()
-            else:
-                window = MainWindow(app)
+            window = ClientWindow() if user_type == "client" else MainWindow(app)
 
             window.show()
             app.exec()
@@ -120,31 +118,26 @@ def run_app():
             if not Session.is_authenticated():
                 # Выход из системы — возвращаемся к выбору входа
                 continue
-            else:
-                # Нормальное завершение
+            # Нормальное завершение
+            break
+
+        # 1. Показываем выбор типа входа
+        choice = ChooseLoginDialog.get_choice()
+
+        if choice is None:
+            sys.exit(0)
+
+        # 2. Показываем соответствующий диалог входа
+        while True:
+            login_dialog = EmployeeLoginDialog() if choice == "employee" else ClientLoginDialog()
+
+            result = login_dialog.exec()
+
+            if result == QDialog.DialogCode.Accepted:
                 break
-        else:
-            # 1. Показываем выбор типа входа
-            choice = ChooseLoginDialog.get_choice()
+            break
 
-            if choice is None:
-                sys.exit(0)
-
-            # 2. Показываем соответствующий диалог входа
-            while True:
-                if choice == "employee":
-                    login_dialog = EmployeeLoginDialog()
-                else:
-                    login_dialog = ClientLoginDialog()
-
-                result = login_dialog.exec()
-
-                if result == QDialog.DialogCode.Accepted:
-                    break
-                else:
-                    break
-
-            continue
+        continue
 
 
 if __name__ == "__main__":

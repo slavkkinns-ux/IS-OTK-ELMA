@@ -255,53 +255,52 @@ class ClientRepository(AbstractRepository):
         **kwargs: Any,
     ) -> int:
         """Создать нового клиента. Возвращает client_id."""
-        with self.db.transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with self.db.transaction() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
                     INSERT INTO clients (client_type, password_hash, phone, email, is_active)
                     VALUES (%s, %s, %s, %s, 1)
                     """,
-                    (client_type, password_hash or None, phone, email),
-                )
-                client_id = int(cur.lastrowid)
+                (client_type, password_hash or None, phone, email),
+            )
+            client_id = int(cur.lastrowid)
 
-                if client_type == "ЮЛ":
-                    cur.execute(
-                        """
+            if client_type == "ЮЛ":
+                cur.execute(
+                    """
                         INSERT INTO legal_entities
                             (client_id, company_name, address, inn, kpp,
                              checking_account, bik, director_name, contact_person)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """,
-                        (
-                            client_id,
-                            name,
-                            kwargs.get("address", ""),
-                            kwargs.get("inn", ""),
-                            kwargs.get("kpp", ""),
-                            kwargs.get("bank_account", ""),
-                            kwargs.get("bik", ""),
-                            kwargs.get("director_name", ""),
-                            kwargs.get("contact_person", ""),
-                        ),
-                    )
-                else:
-                    cur.execute(
-                        """
+                    (
+                        client_id,
+                        name,
+                        kwargs.get("address", ""),
+                        kwargs.get("inn", ""),
+                        kwargs.get("kpp", ""),
+                        kwargs.get("bank_account", ""),
+                        kwargs.get("bik", ""),
+                        kwargs.get("director_name", ""),
+                        kwargs.get("contact_person", ""),
+                    ),
+                )
+            else:
+                cur.execute(
+                    """
                         INSERT INTO individuals
                             (client_id, full_name, birth_date,
                              passport_series, passport_number)
                         VALUES (%s, %s, %s, %s, %s)
                         """,
-                        (
-                            client_id,
-                            name,
-                            kwargs.get("birth_date"),
-                            kwargs.get("passport_series", ""),
-                            kwargs.get("passport_number", ""),
-                        ),
-                    )
+                    (
+                        client_id,
+                        name,
+                        kwargs.get("birth_date"),
+                        kwargs.get("passport_series", ""),
+                        kwargs.get("passport_number", ""),
+                    ),
+                )
         return client_id
 
     def update_client(
@@ -315,22 +314,21 @@ class ClientRepository(AbstractRepository):
         **kwargs: Any,
     ) -> None:
         """Обновить данные клиента."""
-        with self.db.transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with self.db.transaction() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
                     UPDATE clients
                     SET client_type = %s,
                         password_hash = COALESCE(%s, password_hash),
                         phone = %s, email = %s
                     WHERE client_id = %s
                     """,
-                    (client_type, password_hash or None, phone, email, client_id),
-                )
+                (client_type, password_hash or None, phone, email, client_id),
+            )
 
-                if client_type == "ЮЛ":
-                    cur.execute(
-                        """
+            if client_type == "ЮЛ":
+                cur.execute(
+                    """
                         INSERT INTO legal_entities
                             (client_id, company_name, address, inn, kpp,
                              checking_account, bik, director_name, contact_person)
@@ -345,21 +343,21 @@ class ClientRepository(AbstractRepository):
                             director_name = VALUES(director_name),
                             contact_person = VALUES(contact_person)
                         """,
-                        (
-                            client_id,
-                            name,
-                            kwargs.get("address", ""),
-                            kwargs.get("inn", ""),
-                            kwargs.get("kpp", ""),
-                            kwargs.get("bank_account", ""),
-                            kwargs.get("bik", ""),
-                            kwargs.get("director_name", ""),
-                            kwargs.get("contact_person", ""),
-                        ),
-                    )
-                else:
-                    cur.execute(
-                        """
+                    (
+                        client_id,
+                        name,
+                        kwargs.get("address", ""),
+                        kwargs.get("inn", ""),
+                        kwargs.get("kpp", ""),
+                        kwargs.get("bank_account", ""),
+                        kwargs.get("bik", ""),
+                        kwargs.get("director_name", ""),
+                        kwargs.get("contact_person", ""),
+                    ),
+                )
+            else:
+                cur.execute(
+                    """
                         INSERT INTO individuals
                             (client_id, full_name, birth_date,
                              passport_series, passport_number)
@@ -370,14 +368,14 @@ class ClientRepository(AbstractRepository):
                             passport_series = VALUES(passport_series),
                             passport_number = VALUES(passport_number)
                         """,
-                        (
-                            client_id,
-                            name,
-                            kwargs.get("birth_date"),
-                            kwargs.get("passport_series", ""),
-                            kwargs.get("passport_number", ""),
-                        ),
-                    )
+                    (
+                        client_id,
+                        name,
+                        kwargs.get("birth_date"),
+                        kwargs.get("passport_series", ""),
+                        kwargs.get("passport_number", ""),
+                    ),
+                )
 
     # ------------------------------------------------------------------
     # Алиасы для обратной совместимости

@@ -9,7 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ClientLoginWindow(object):
+class Ui_ClientLoginWindow:
     def setupUi(self, ClientLoginWindow):
         ClientLoginWindow.setObjectName("ClientLoginWindow")
         ClientLoginWindow.resize(542, 590)

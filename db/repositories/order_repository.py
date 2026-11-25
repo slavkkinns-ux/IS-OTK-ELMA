@@ -176,29 +176,28 @@ class OrderRepository(AbstractRepository):
         total_price: float,
     ) -> int:
         """Создать заказ с услугами. Сохраняет реальную цену каждой услуги."""
-        with self.db.transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with self.db.transaction() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
                     INSERT INTO orders (vessel_code, client_id, employee_id, order_date, status)
                     VALUES (%s, %s, %s, CURRENT_TIMESTAMP, 'Новый')
                     """,
-                    (vessel_code, client_id, employee_id),
-                )
-                order_id = int(cur.lastrowid)
+                (vessel_code, client_id, employee_id),
+            )
+            order_id = int(cur.lastrowid)
 
-                # Берём реальную цену каждой услуги из справочника services
-                for sid in service_ids:
-                    cur.execute("SELECT price FROM services WHERE service_id = %s", (sid,))
-                    row = cur.fetchone()
-                    price = float(row["price"]) if row else 0.0
-                    cur.execute(
-                        """
+            # Берём реальную цену каждой услуги из справочника services
+            for sid in service_ids:
+                cur.execute("SELECT price FROM services WHERE service_id = %s", (sid,))
+                row = cur.fetchone()
+                price = float(row["price"]) if row else 0.0
+                cur.execute(
+                    """
                         INSERT INTO order_services (order_id, service_id, price_at_order)
                         VALUES (%s, %s, %s)
                         """,
-                        (order_id, sid, price),
-                    )
+                    (order_id, sid, price),
+                )
         return order_id
 
     def update_order(
@@ -211,36 +210,35 @@ class OrderRepository(AbstractRepository):
         total_price: float,
     ) -> None:
         """Обновить заказ: шапка + пересоздание услуг с реальными ценами."""
-        with self.db.transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with self.db.transaction() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
                     UPDATE orders
                     SET vessel_code = %s,
                         client_id   = %s,
                         employee_id = %s
                     WHERE order_id = %s
                     """,
-                    (vessel_code, client_id, employee_id, order_id),
-                )
+                (vessel_code, client_id, employee_id, order_id),
+            )
+            cur.execute(
+                "DELETE FROM order_services WHERE order_id = %s",
+                (order_id,),
+            )
+            for sid in service_ids:
                 cur.execute(
-                    "DELETE FROM order_services WHERE order_id = %s",
-                    (order_id,),
+                    "SELECT price FROM services WHERE service_id = %s",
+                    (sid,),
                 )
-                for sid in service_ids:
-                    cur.execute(
-                        "SELECT price FROM services WHERE service_id = %s",
-                        (sid,),
-                    )
-                    row = cur.fetchone()
-                    price = float(row["price"]) if row else 0.0
-                    cur.execute(
-                        """
+                row = cur.fetchone()
+                price = float(row["price"]) if row else 0.0
+                cur.execute(
+                    """
                         INSERT INTO order_services (order_id, service_id, price_at_order)
                         VALUES (%s, %s, %s)
                         """,
-                        (order_id, sid, price),
-                    )
+                    (order_id, sid, price),
+                )
 
 
 __all__ = ["OrderRepository"]

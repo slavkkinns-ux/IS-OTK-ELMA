@@ -1,8 +1,10 @@
 """Диалог выбора типа входа: Сотрудник или Клиент."""
 import os
+
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QDialog, QSizePolicy
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QIcon, QPixmap
+
 from ui.choose_login_ui import Ui_ChooseLoginDialog
 from utils.files import get_resource_path
 

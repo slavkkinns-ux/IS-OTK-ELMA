@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import os
-import sys
 import subprocess
+import sys
 
 
 def get_resource_path(relative_path: str) -> str:

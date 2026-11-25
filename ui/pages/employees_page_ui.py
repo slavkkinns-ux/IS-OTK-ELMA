@@ -9,7 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class Ui_EmployeesPage(object):
+class Ui_EmployeesPage:
     def setupUi(self, pageEmployees):
         pageEmployees.setObjectName("pageEmployees")
         pageEmployees.setStyleSheet("QWidget#pageEmployees {\n"

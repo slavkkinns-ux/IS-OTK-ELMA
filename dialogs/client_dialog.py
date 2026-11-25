@@ -7,8 +7,16 @@ from typing import Any
 
 from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import (
-    QComboBox, QDateEdit, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QStackedWidget, QWidget,
+    QComboBox,
+    QDateEdit,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QStackedWidget,
+    QWidget,
 )
 
 from db import client_repo as _default_client_repo

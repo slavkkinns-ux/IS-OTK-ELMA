@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from db.repositories.order_repository import OrderRepository
 from db.repositories.client_repository import ClientRepository
+from db.repositories.order_repository import OrderRepository
 from db.repositories.service_repository import ServiceRepository
-
 from services.base_service import BaseService
 
 

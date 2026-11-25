@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import Any
 
 from db.repositories.employee_repository import EmployeeRepository
-
 from services.base_service import BaseService
 
 

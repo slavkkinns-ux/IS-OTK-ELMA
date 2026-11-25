@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from db.repositories.report_repository import ReportRepository
 from db.repositories.employee_repository import EmployeeRepository
+from db.repositories.report_repository import ReportRepository
 
 _report_repo = ReportRepository()
 _employee_repo = EmployeeRepository()

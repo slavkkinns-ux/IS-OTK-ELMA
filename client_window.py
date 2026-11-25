@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QMainWindow, QHeaderView, QMessageBox
-from PyQt6.QtCore import Qt
-
-from services.client_service import ClientService
-from widgets.base_table import make_item, populate_table
-from ui.client_window_ui import Ui_ClientsWindow
-from session import Session
-from utils.files import open_file
-from db import client_repo as _default_client_repo
 import os
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QHeaderView, QMainWindow, QMessageBox
+
+from db import client_repo as _default_client_repo
+from services.client_service import ClientService
+from session import Session
+from ui.client_window_ui import Ui_ClientsWindow
+from utils.files import open_file
+from widgets.base_table import make_item, populate_table
 
 
 class ClientWindow(QMainWindow):

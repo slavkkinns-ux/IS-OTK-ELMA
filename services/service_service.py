@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from db.repositories.service_repository import ServiceRepository
-
 from services.base_service import BaseService
 
 
@@ -81,8 +80,8 @@ class ServiceService(BaseService):
             raise ValueError("Введите цену.")
         try:
             price = float(price)
-        except (ValueError, TypeError):
-            raise ValueError("Некорректный формат цены.")
+        except (ValueError, TypeError) as e:
+            raise ValueError("Некорректный формат цены.") from e
         if price < 0:
             raise ValueError("Цена не может быть отрицательной.")
 
@@ -121,8 +120,8 @@ class ServiceService(BaseService):
 
         try:
             price = float(price)
-        except (ValueError, TypeError):
-            raise ValueError("Некорректный формат цены.")
+        except (ValueError, TypeError) as e:
+            raise ValueError("Некорректный формат цены.") from e
         if price < 0:
             raise ValueError("Цена не может быть отрицательной.")
 

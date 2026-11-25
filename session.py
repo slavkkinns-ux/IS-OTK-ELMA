@@ -1,7 +1,8 @@
 """Управление сессией пользователя."""
+import contextlib
+import json
 import logging
 import os
-import json
 
 SESSION_FILE = "session.json"
 FIRST_LOGIN_FILE = "first_login.json"
@@ -88,7 +89,7 @@ class Session:
         try:
             if not os.path.exists(FIRST_LOGIN_FILE):
                 return True
-            with open(FIRST_LOGIN_FILE, 'r', encoding='utf-8') as f:
+            with open(FIRST_LOGIN_FILE, encoding='utf-8') as f:
                 data = json.load(f)
             return str(user_id) not in data.get("logged_in_users", [])
         except Exception:
@@ -105,7 +106,7 @@ class Session:
         try:
             data = {"logged_in_users": []}
             if os.path.exists(FIRST_LOGIN_FILE):
-                with open(FIRST_LOGIN_FILE, 'r', encoding='utf-8') as f:
+                with open(FIRST_LOGIN_FILE, encoding='utf-8') as f:
                     data = json.load(f)
             logged_in = set(data.get("logged_in_users", []))
             logged_in.add(str(user_id))
@@ -135,10 +136,8 @@ class Session:
         else:
             # Если файл был от прошлого входа — удаляем его
             if os.path.exists(SESSION_FILE):
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(SESSION_FILE)
-                except OSError:
-                    pass
 
     @classmethod
     def get_user(cls):
@@ -177,10 +176,8 @@ class Session:
     def clear(cls):
         cls._current_user = None
         if os.path.exists(SESSION_FILE):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(SESSION_FILE)
-            except OSError:
-                pass
 
     @classmethod
     def is_authenticated(cls):
@@ -198,7 +195,7 @@ class Session:
     def _load_from_file(cls):
         if os.path.exists(SESSION_FILE):
             try:
-                with open(SESSION_FILE, 'r', encoding='utf-8') as f:
+                with open(SESSION_FILE, encoding='utf-8') as f:
                     data = json.load(f)
                 # Нормализуем роль при загрузке из файла
                 if 'role' in data:

@@ -9,25 +9,25 @@
 
 from __future__ import annotations
 
-from db.database import db, DatabaseConnection
 from db.connection import (
+    check_db,
+    close_connection,
+    connect_with_retry,
+    ensure_columns,
     ensure_database,
     ensure_schema,
-    ensure_columns,
-    check_db,
-    is_db_available,
-    connect_with_retry,
     get_config_info,
     get_last_error,
-    close_connection,
+    is_db_available,
 )
+from db.database import DatabaseConnection, db
 from db.repositories import (
     AbstractRepository,
     ClientRepository,
-    OrderRepository,
-    ServiceRepository,
-    ReportRepository,
     EmployeeRepository,
+    OrderRepository,
+    ReportRepository,
+    ServiceRepository,
 )
 
 # Экземпляры репозиториев для удобного импорта (один экземпляр на репозиторий)

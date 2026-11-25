@@ -7,8 +7,18 @@ from typing import Any
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QCheckBox, QComboBox, QGroupBox, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QPushButton, QTableWidget, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QCheckBox,
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from db import employee_repo as _default_employee_repo
@@ -19,8 +29,12 @@ from utils.formatting import format_date
 from widgets.base_table import ActionButtonsWidget, RowAction, make_item, populate_table
 from widgets.dialog_helpers import show_error, show_info, show_question, show_warning
 from widgets.styles import (
-    DEFAULT_ROLE_COLOR, PRIMARY_BUTTON_STYLE, ROLE_COLORS,
-    STAT_CARD_STYLE, SUCCESS_BUTTON_STYLE, TABLE_CARD_STYLE,
+    DEFAULT_ROLE_COLOR,
+    PRIMARY_BUTTON_STYLE,
+    ROLE_COLORS,
+    STAT_CARD_STYLE,
+    SUCCESS_BUTTON_STYLE,
+    TABLE_CARD_STYLE,
 )
 
 # (ключ в статистике, заголовок карточки)

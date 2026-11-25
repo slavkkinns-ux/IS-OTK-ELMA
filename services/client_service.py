@@ -6,7 +6,6 @@ import hashlib
 from typing import Any
 
 from db.repositories.client_repository import ClientRepository
-
 from services.base_service import BaseService
 
 

@@ -5,11 +5,21 @@ from __future__ import annotations
 import json
 import logging
 import os
+
+from PyQt6.QtCore import QObject, Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QProgressBar, QLineEdit, QFormLayout, QMessageBox, QGroupBox
+    QDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QObject
+
 from services.connection_service import ConnectionService
 
 logger = logging.getLogger(__name__)
@@ -71,7 +81,7 @@ class ConnectionDialog(QDialog):
 
         if os.path.exists(config_json_path):
             try:
-                with open(config_json_path, 'r', encoding='utf-8') as f:
+                with open(config_json_path, encoding='utf-8') as f:
                     data = json.load(f)
                 defaults.update(data)
             except Exception:

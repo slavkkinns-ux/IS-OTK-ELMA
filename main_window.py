@@ -5,38 +5,51 @@ import logging
 import os
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QDate
+from PyQt6 import QtCore, QtGui
+from PyQt6.QtCore import QDate, Qt
 from PyQt6.QtWidgets import (
-    QMainWindow, QButtonGroup, QHeaderView, QTableWidgetItem,
-    QMessageBox, QDialog, QDateEdit, QLabel, QPushButton,
-    QHBoxLayout, QVBoxLayout
+    QButtonGroup,
+    QDateEdit,
+    QDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QTableWidgetItem,
+    QVBoxLayout,
 )
-from PyQt6 import QtGui, QtCore
-from ui.main_window_ui import Ui_MainWindow
-from session import Session
-from utils.formatting import format_date
-from utils.files import open_file, print_file
-from services.order_service import OrderService
-from services.client_service import ClientService
-from services.report_service import ReportService
-from services.employee_service import EmployeeService
-from services.service_service import ServiceService
-from db import order_repo as _default_order_repo
+
 from db import client_repo as _default_client_repo
-from db import report_repo as _default_report_repo
 from db import employee_repo as _default_employee_repo
+from db import order_repo as _default_order_repo
+from db import report_repo as _default_report_repo
 from db import services_repo as _default_services_repo
 from dialogs import (
-    OrderDialog, ViewOrderDialog, ClientDialog,
-    ClientEditDialog, ClientViewDialog, ServicesDialog,
-    ResearchResultDialog
+    ClientDialog,
+    ClientEditDialog,
+    ClientViewDialog,
+    OrderDialog,
+    ResearchResultDialog,
+    ServicesDialog,
+    ViewOrderDialog,
 )
-from pages.employees_page import EmployeesPage
 from dialogs.log_widget import LogWidget
+from pages.employees_page import EmployeesPage
+from services.client_service import ClientService
+from services.employee_service import EmployeeService
+from services.order_service import OrderService
+from services.report_service import ReportService
+from services.service_service import ServiceService
+from session import Session
+from ui.main_window_ui import Ui_MainWindow
+from utils.files import open_file, print_file
+from utils.formatting import format_date
 from widgets.base_table import make_item, populate_table
 from widgets.styles import (
-    SIDEBAR_BUTTON_STYLE,
     SIDEBAR_BUTTON_SECONDARY_STYLE,
+    SIDEBAR_BUTTON_STYLE,
     SIDEBAR_DANGER_BUTTON_STYLE,
 )
 
@@ -131,9 +144,9 @@ class MainWindow(QMainWindow):
         sidebar_frame = self.ui.sidebarFrame
         sidebar_layout = sidebar_frame.layout()
 
-        # Убираем фиксированную максимальную ширину сайдбара (если задана в .ui)
-        sidebar_frame.setMaximumWidth(16777215)
-        sidebar_frame.setMinimumWidth(200)
+        # Фиксированная ширина сайдбара 240px
+        sidebar_frame.setMaximumWidth(240)
+        sidebar_frame.setMinimumWidth(240)
 
         # Находим внутренний sidebarLayout для настройки spacer'а
         inner_layout = None

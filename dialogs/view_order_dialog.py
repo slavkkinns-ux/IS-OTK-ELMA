@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QFormLayout, QGroupBox, QHBoxLayout, QHeaderView,
-    QLabel, QTableWidget, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from db import order_repo as _default_order_repo
@@ -65,7 +72,7 @@ class ViewOrderDialog(BaseDialog):
 
         total_lay = QHBoxLayout()
         total_lay.addWidget(QLabel("Итого:"))
-        self.lblTotal = QLabel("0.00 ₽")
+        self.lblTotal = QLabel("0.00 RUB")
         self.lblTotal.setStyleSheet(TOTAL_VALUE_STYLE)
         total_lay.addWidget(self.lblTotal)
         total_lay.addStretch()
@@ -91,8 +98,8 @@ class ViewOrderDialog(BaseDialog):
             price = float(s.get("price", 0))
             total += price
             self.tableServices.setItem(row_idx, 0, make_item(s.get("service_name")))
-            self.tableServices.setItem(row_idx, 1, make_item(f"{price:.2f} ₽", align_right=True))
-        self.lblTotal.setText(f"{total:.2f} ₽")
+            self.tableServices.setItem(row_idx, 1, make_item(f"{price:.2f} RUB", align_right=True))
+        self.lblTotal.setText(f"{total:.2f} RUB")
 
 
 __all__ = ["ViewOrderDialog"]

@@ -92,21 +92,20 @@ class EmployeeRepository(AbstractRepository):
         """Создать нового сотрудника. Возвращает employee_id."""
         password_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
 
-        with self.db.transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with self.db.transaction() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
                     INSERT INTO employees
                         (full_name, login, password_hash, role, is_active,
                          must_change_password, email, phone, created_at, created_by)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s)
                     """,
-                    (
-                        full_name, login, password_hash, role,
-                        1 if is_active else 0, 1, email, phone, created_by,
-                    ),
-                )
-                return int(cur.lastrowid)
+                (
+                    full_name, login, password_hash, role,
+                    1 if is_active else 0, 1, email, phone, created_by,
+                ),
+            )
+            return int(cur.lastrowid)
 
     def update_employee(
         self,
@@ -147,10 +146,9 @@ class EmployeeRepository(AbstractRepository):
         params.append(employee_id)
         query = f"UPDATE employees SET {', '.join(updates)} WHERE employee_id = %s"
 
-        with self.db.transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
-                return cur.rowcount > 0
+        with self.db.transaction() as conn, conn.cursor() as cur:
+            cur.execute(query, params)
+            return cur.rowcount > 0
 
     def reset_password(
         self, employee_id: int, new_password: str = "123456"
@@ -158,17 +156,16 @@ class EmployeeRepository(AbstractRepository):
         """Сбросить пароль сотрудника. Возвращает True, если строка была обновлена."""
         password_hash = hashlib.sha256(new_password.encode("utf-8")).hexdigest()
 
-        with self.db.transaction() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with self.db.transaction() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
                     UPDATE employees
                     SET password_hash = %s, must_change_password = 1
                     WHERE employee_id = %s
                     """,
-                    (password_hash, employee_id),
-                )
-                return cur.rowcount > 0
+                (password_hash, employee_id),
+            )
+            return cur.rowcount > 0
 
     # ------------------------------------------------------------------
     # Статистика и проверки

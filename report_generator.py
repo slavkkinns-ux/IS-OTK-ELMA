@@ -1,19 +1,22 @@
 """Генератор PDF-отчётов для заказов (с поддержкой кириллицы)."""
+import contextlib
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm, cm
+
 from reportlab.lib import colors
-from reportlab.platypus import Table, TableStyle, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from services.order_service import OrderService
-from services.report_service import ReportService
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph, Table, TableStyle
+
 from db import order_repo as _default_order_repo
 from db import report_repo as _default_report_repo
+from services.order_service import OrderService
+from services.report_service import ReportService
+
 
 # =============================================================================
 # Регистрация кириллического шрифта
@@ -42,10 +45,8 @@ def _register_cyrillic_font():
 
     for path, name in candidates:
         if os.path.exists(path):
-            try:
+            with contextlib.suppress(Exception):
                 pdfmetrics.registerFont(TTFont(name, path))
-            except Exception:
-                pass
 
 # Регистрируем один раз при импорте
 _register_cyrillic_font()
@@ -95,10 +96,7 @@ def generate_report_pdf(
     reports_dir.mkdir(exist_ok=True)
 
     # Формируем имя файла
-    if report_id:
-        filename = f"ОТЧ-{report_id:04d}.pdf"
-    else:
-        filename = f"ОТЧ-{order_id:04d}.pdf"
+    filename = f"ОТЧ-{report_id:04d}.pdf" if report_id else f"ОТЧ-{order_id:04d}.pdf"
 
     filepath = str(reports_dir / filename)
 

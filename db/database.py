@@ -8,8 +8,9 @@ DatabaseConnection не хранит собственное соединение
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 import pymysql
 

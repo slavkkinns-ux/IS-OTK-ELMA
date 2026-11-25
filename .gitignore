@@ -9,6 +9,7 @@ htmlcov/
 .tox/
 .mypy_cache/
 .ruff_cache/
+pyproject.toml
 
 # Build / Distribution
 build/

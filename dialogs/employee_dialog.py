@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QFormLayout, QGroupBox, QLabel, QLineEdit, QWidget,
+    QCheckBox,
+    QComboBox,
+    QFormLayout,
+    QGroupBox,
+    QLabel,
+    QLineEdit,
+    QWidget,
 )
 
 from db import employee_repo as _default_employee_repo
@@ -121,14 +127,14 @@ class EmployeeDialog(BaseDialog):
     def _save(self) -> None:
         """Сохранить сотрудника. Ошибки валидации сервиса показывает BaseDialog."""
         current_user_id = Session.get_user_id() or 0
-        common = dict(
-            full_name=self.edit_full_name.text().strip(),
-            login=self.edit_login.text().strip(),
-            role=self.combo_role.currentData(),
-            is_active=self.check_active.isChecked(),
-            email=self.edit_email.text().strip() or None,
-            phone=self.edit_phone.text().strip() or None,
-        )
+        common = {
+            "full_name": self.edit_full_name.text().strip(),
+            "login": self.edit_login.text().strip(),
+            "role": self.combo_role.currentData(),
+            "is_active": self.check_active.isChecked(),
+            "email": self.edit_email.text().strip() or None,
+            "phone": self.edit_phone.text().strip() or None,
+        }
 
         if self.employee_id:
             self.service.update_employee(

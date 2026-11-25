@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from db.repositories.report_repository import ReportRepository
 from db.repositories.order_repository import OrderRepository
-from utils.files import open_file, print_file
-
+from db.repositories.report_repository import ReportRepository
 from services.base_service import BaseService
+from utils.files import open_file, print_file
 
 
 class ReportService(BaseService):

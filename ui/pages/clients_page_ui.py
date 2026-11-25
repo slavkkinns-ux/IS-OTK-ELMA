@@ -9,7 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ClientsPage(object):
+class Ui_ClientsPage:
     def setupUi(self, pageClients):
         pageClients.setObjectName("pageClients")
         pageClients.setStyleSheet("QWidget#pageClients {\n"

@@ -7,7 +7,13 @@ from datetime import datetime
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QFileDialog, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout, QWidget,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from logger import LOG_DIR
@@ -74,7 +80,7 @@ class LogWidget(QWidget):
             return
 
         try:
-            with open(os.path.join(LOG_DIR, log_files[0]), "r", encoding="utf-8") as f:
+            with open(os.path.join(LOG_DIR, log_files[0]), encoding="utf-8") as f:
                 self.text_edit.setPlainText(f.read())
             scrollbar = self.text_edit.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())

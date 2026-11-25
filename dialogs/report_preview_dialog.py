@@ -7,8 +7,16 @@ from datetime import datetime
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QFormLayout, QGroupBox, QHBoxLayout, QHeaderView,
-    QLabel, QPushButton, QTableWidget, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from db import order_repo as _default_order_repo
@@ -87,7 +95,7 @@ class ReportPreviewDialog(BaseDialog):
 
         total_lay = QHBoxLayout()
         total_lay.addWidget(QLabel("ИТОГО:"))
-        self.lblTotal = QLabel("0.00 ₽")
+        self.lblTotal = QLabel("0.00 RUB")
         self.lblTotal.setStyleSheet(
             "font-size: 12pt; font-weight: bold; color: #174A7E; padding: 5px;"
         )
@@ -136,9 +144,9 @@ class ReportPreviewDialog(BaseDialog):
             total += price
             self.tableServices.setItem(row_idx, 0, make_item(row_idx + 1, center=True))
             self.tableServices.setItem(row_idx, 1, make_item(s["service_name"]))
-            self.tableServices.setItem(row_idx, 2, make_item(f"{price:.2f} ₽", align_right=True))
+            self.tableServices.setItem(row_idx, 2, make_item(f"{price:.2f} RUB", align_right=True))
 
-        self.lblTotal.setText(f"{total:.2f} ₽")
+        self.lblTotal.setText(f"{total:.2f} RUB")
         self.lblFooter.setText(f"Отчёт сформирован: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
     def _create_pdf(self) -> None:

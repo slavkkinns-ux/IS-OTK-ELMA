@@ -6,8 +6,16 @@ from typing import Any
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QDialog, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QMessageBox, QPushButton, QTableWidget, QWidget,
+    QAbstractItemView,
+    QDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QWidget,
 )
 
 from db import services_repo as _default_services_repo
@@ -17,7 +25,7 @@ from widgets.base_table import make_item, populate_table
 from widgets.dialog_helpers import show_info, show_question, show_warning
 from widgets.styles import TABLE_STYLE, TITLE_STYLE
 
-_COLUMNS = ["ID", "Название услуги", "Цена, ₽", "Статус"]
+_COLUMNS = ["ID", "Название услуги", "Цена, RUB", "Статус"]
 
 
 class ServicesDialog(BaseDialog):
@@ -193,7 +201,7 @@ class ServiceEditDialog(BaseDialog):
         self.root.addLayout(name_lay)
 
         price_lay = QHBoxLayout()
-        price_lay.addWidget(QLabel("Цена (₽):"))
+        price_lay.addWidget(QLabel("Цена (RUB):"))
         self.editPrice = QLineEdit()
         self.editPrice.setPlaceholderText("0.00")
         price_lay.addWidget(self.editPrice)

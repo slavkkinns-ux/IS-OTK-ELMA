@@ -9,7 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ChooseLoginDialog(object):
+class Ui_ChooseLoginDialog:
     def setupUi(self, ChooseLoginDialog):
         ChooseLoginDialog.setObjectName("ChooseLoginDialog")
         ChooseLoginDialog.resize(650, 540)

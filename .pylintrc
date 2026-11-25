@@ -1,0 +1,79 @@
+[MASTER]
+extension-pkg-allow-list=PyQt6,PyQt6.QtCore,PyQt6.QtWidgets,PyQt6.QtGui,PyQt6.QtSvg,pymysql,reportlab
+ignore=ui,ui/pages,build,dist,__pycache__,*.ui
+
+[MESSAGES CONTROL]
+# Disable PyQt6 false positives and noisy checks for Qt code
+disable=
+    c-extension-no-member,
+    no-name-in-module,
+    import-error,
+    no-member,
+    invalid-name,
+    too-few-public-methods,
+    too-many-instance-attributes,
+    too-many-arguments,
+    too-many-positional-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    too-many-nested-blocks,
+    too-many-public-methods,
+    redefined-outer-name,
+    redefined-builtin,
+    global-statement,
+    protected-access,
+    attribute-defined-outside-init,
+    broad-exception-caught,
+    raise-missing-from,
+    consider-using-with,
+    unused-argument,
+    unused-import,
+    missing-function-docstring,
+    missing-class-docstring,
+    missing-module-docstring,
+    line-too-long,
+    trailing-whitespace,
+    missing-final-newline,
+    wrong-import-order,
+    ungrouped-imports,
+    import-outside-toplevel,
+    reimported,
+    use-dict-literal,
+    no-else-return,
+    chained-comparison,
+    deprecated-argument,
+    duplicate-code,
+    too-many-lines,
+    superfluous-parens,
+    no-else-break,
+    no-else-continue
+
+[FORMAT]
+max-line-length=120
+indent-string='    '
+
+[BASIC]
+good-names=
+    i, j, k, ex, Run, _, id, ok, db, ui, cv, qt, sql, pdf, csv, xml, json, html, css, js, ts, py, exe, dll, so, dylib, bin, out, err, log, tmp, tmpdir, home, etc, usr, var, opt, lib, lib64, bin, sbin, include, share, doc, man, info, locale, src, test, tests, spec, specs, fixture, fixtures, mock, mocks, stub, stubs, fake, fakes, spy, spies, double, doubles
+bad-names=
+    foo, bar, baz, toto, tutu, tata, dummy, fake, mock, stub
+
+[DESIGN]
+max-args=7
+max-locals=20
+max-returns=6
+max-branches=15
+max-statements=60
+max-parents=7
+max-attributes=10
+min-public-methods=1
+
+[IMPORTS]
+analyse-fallback-blocks=yes
+
+[CLASSES]
+defining-attr-methods=__init__,__new__,setUp,tearDown,setUpClass,tearDownClass
+
+[EXCEPTIONS]
+overgeneral-exceptions=builtins.Exception

@@ -4,10 +4,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QFormLayout, QGroupBox, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
 
 from db import client_repo as _default_client_repo
@@ -67,7 +77,7 @@ class OrderDialog(BaseDialog):
 
         total_lay = QHBoxLayout()
         total_lay.addWidget(QLabel("Итого:"))
-        self.lblTotal = QLabel("0.00 ₽")
+        self.lblTotal = QLabel("0.00 RUB")
         self.lblTotal.setStyleSheet(TOTAL_VALUE_STYLE)
         total_lay.addWidget(self.lblTotal)
         total_lay.addStretch()
@@ -166,7 +176,7 @@ class OrderDialog(BaseDialog):
             return
 
         for s in self.all_services:
-            cb = QCheckBox(f"{s['service_name']}  —  {float(s['price']):.2f} ₽")
+            cb = QCheckBox(f"{s['service_name']}  —  {float(s['price']):.2f} RUB")
             cb.service_id = s["service_id"]  # type: ignore[attr-defined]
             cb.price = float(s["price"])  # type: ignore[attr-defined]
             cb.stateChanged.connect(self._recalc_total)
@@ -201,7 +211,7 @@ class OrderDialog(BaseDialog):
 
     def _recalc_total(self) -> None:
         total = sum(cb.price for cb in self.service_checks if cb.isChecked())  # type: ignore[attr-defined]
-        self.lblTotal.setText(f"{total:.2f} ₽")
+        self.lblTotal.setText(f"{total:.2f} RUB")
 
     # ==================== КЛИЕНТЫ ====================
 
@@ -273,13 +283,13 @@ class OrderDialog(BaseDialog):
         if not selected:
             raise ValueError("Выберите хотя бы одну услугу.")
 
-        payload = dict(
-            vessel_code=code,
-            client_id=self.comboClient.currentData(),
-            employee_id=Session.get_user_id() or 0,
-            service_ids=[cb.service_id for cb in selected],  # type: ignore[attr-defined]
-            total_price=sum(cb.price for cb in selected),  # type: ignore[attr-defined]
-        )
+        payload = {
+            "vessel_code": code,
+            "client_id": self.comboClient.currentData(),
+            "employee_id": Session.get_user_id() or 0,
+            "service_ids": [cb.service_id for cb in selected],  # type: ignore[attr-defined]
+            "total_price": sum(cb.price for cb in selected),  # type: ignore[attr-defined]
+        }
 
         if self.order_id is None:
             self.order_service.create_order(**payload)

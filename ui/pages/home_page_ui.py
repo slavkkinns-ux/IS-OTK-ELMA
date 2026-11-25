@@ -9,7 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class Ui_HomePage(object):
+class Ui_HomePage:
     def setupUi(self, pageHome):
         pageHome.setObjectName("pageHome")
         pageHome.setStyleSheet("QPushButton {\n"

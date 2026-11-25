@@ -9,7 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class Ui_ResearchPage(object):
+class Ui_ResearchPage:
     def setupUi(self, pageResearch):
         pageResearch.setObjectName("pageResearch")
         pageResearch.setStyleSheet("QWidget#pageResearch {\n"

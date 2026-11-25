@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import logging
 import os
-from PyQt6.QtWidgets import (
-    QDialog, QLineEdit, QCheckBox, QPushButton, QHBoxLayout, QWidget
-)
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QIcon, QPixmap, QPainter
+
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from ui.login_client_ui import Ui_ClientLoginWindow
-from session import Session, Role
-from services.client_service import ClientService
+from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLineEdit, QPushButton, QWidget
+
 from db import client_repo as _default_client_repo
+from services.client_service import ClientService
+from session import Role, Session
+from ui.login_client_ui import Ui_ClientLoginWindow
 from utils.files import get_resource_path
 
 logger = logging.getLogger(__name__)

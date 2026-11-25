@@ -1,9 +1,11 @@
 """Подключение к MySQL с полной проверкой и миграцией БД."""
-import pymysql
-import time
+import contextlib
 import hashlib
 import json
 import os
+import time
+
+import pymysql
 
 _connection = None
 _config = None
@@ -33,7 +35,7 @@ def _load_config(force_reload: bool = False):
     
     if os.path.exists(config_json_path):
         try:
-            with open(config_json_path, 'r', encoding='utf-8') as f:
+            with open(config_json_path, encoding='utf-8') as f:
                 json_config = json.load(f)
             for key in ('host', 'port', 'user', 'password', 'database', 'charset'):
                 if key in json_config:
@@ -107,7 +109,7 @@ def ensure_database() -> str:
                 conn.close()
                 return f"База данных '{db_name}' уже существует."
     except Exception as e:
-        raise RuntimeError(f"Не удалось создать базу данных '{db_name}': {e}")
+        raise RuntimeError(f"Не удалось создать базу данных '{db_name}': {e}") from e
 
 
 def get_connection():
@@ -215,9 +217,9 @@ def ensure_schema() -> str:
     3. Добавляет недостающие колонки
     4. Создаёт администратора, если нет
     """
-    from db.schema import SCHEMA_SQL, REQUIRED_TABLES
+    from db.schema import REQUIRED_TABLES, SCHEMA_SQL
 
-    ADMIN_PASSWORD_HASH = hashlib.sha256('12345'.encode()).hexdigest()
+    ADMIN_PASSWORD_HASH = hashlib.sha256(b'12345').hexdigest()
 
     # Шаг 1: БД
     db_info = ensure_database()
@@ -237,10 +239,8 @@ def ensure_schema() -> str:
                 for statement in SCHEMA_SQL.split(';'):
                     stmt = statement.strip()
                     if stmt and not stmt.startswith('--'):
-                        try:
+                        with contextlib.suppress(Exception):
                             cur.execute(stmt)
-                        except Exception:
-                            pass  # Ошибки игнорируем — таблицы могут уже быть
                 conn.commit()
 
                 cur.execute("SHOW TABLES")

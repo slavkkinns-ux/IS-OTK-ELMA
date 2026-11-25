@@ -9,7 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
-class Ui_OrdersPage(object):
+class Ui_OrdersPage:
     def setupUi(self, pageOrders):
         pageOrders.setObjectName("pageOrders")
         pageOrders.setStyleSheet("QWidget#pageOrders {\n"
