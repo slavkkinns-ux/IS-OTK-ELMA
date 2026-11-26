@@ -211,10 +211,10 @@ QTableWidget#tableEmployees::item:selected {
 }
 
 QHeaderView::section {
-    background-color: #E8EFF7;
-    color: #244B73;
+    background-color: #6C757D;
+    color: #FFFFFF;
     border: none;
-    border-bottom: 1px solid #D2DFEC;
+    border-bottom: 1px solid #5A6268;
     padding: 9px 7px;
     font-weight: bold;
 }

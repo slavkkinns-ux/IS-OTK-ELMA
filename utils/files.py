@@ -41,13 +41,33 @@ def open_file(path: str) -> None:
 def print_file(path: str) -> None:
     """Отправить файл на печать.
 
+    На Windows пытается использовать системную команду печати. Если в системе
+    нет приложения, зарегистрированного для печати PDF (WinError 1155),
+    файл открывается в приложении по умолчанию, а пользователю предлагается
+    распечатать его вручную.
+
     Raises:
         FileNotFoundError: Если файл не существует.
+        RuntimeError: Если не удалось отправить на печать автоматически.
     """
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"Файл не найден: {path}")
     if sys.platform == "win32":
-        os.startfile(path, "print")
+        try:
+            os.startfile(path, "print")
+        except OSError as e:
+            # Нет приложения для автоматической печати PDF — открываем файл
+            # в приложении по умолчанию и просим распечатать вручную.
+            try:
+                os.startfile(path)
+            except OSError:
+                pass
+            raise RuntimeError(
+                f"Не удалось автоматически отправить файл на печать.\n"
+                f"Файл открыт в приложении по умолчанию. "
+                f"Распечатайте его вручную (Ctrl+P).\n\n"
+                f"Подробности: {e}"
+            )
     else:
         subprocess.Popen(["lp", path])
 

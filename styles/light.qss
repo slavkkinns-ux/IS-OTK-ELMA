@@ -82,10 +82,10 @@ QTableWidget::item:selected {
 }
 
 QHeaderView::section {
-    background-color: #f0f0f0;
-    color: #000000;
+    background-color: #6C757D;
+    color: #FFFFFF;
     padding: 6px;
-    border: 1px solid #cccccc;
+    border: 1px solid #5A6268;
     font-weight: bold;
 }
 

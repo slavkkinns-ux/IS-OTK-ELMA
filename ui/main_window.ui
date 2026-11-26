@@ -3468,7 +3468,14 @@ QPushButton#btnOpenReport:hover {
                            </property>
                           </widget>
                          </item>
-                         <item>
+                                                   <item>
+                           <widget class="QLabel" name="lblDocumentNumber">
+                            <property name="text">
+                             <string>Номер отчёта: —</string>
+                            </property>
+                           </widget>
+                          </item>
+<item>
                           <widget class="QScrollArea" name="reportPreviewContent">
                            <property name="frameShape">
                             <enum>QFrame::NoFrame</enum>

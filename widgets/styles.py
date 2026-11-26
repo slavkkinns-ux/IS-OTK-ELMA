@@ -41,15 +41,20 @@ TABLE_STYLE = """
 TABLE_CARD_STYLE = """
     QTableWidget {
         background-color: #FFFFFF;
+        alternate-background-color: #F6F9FC;
         border: 1px solid #D8E3EF;
         border-radius: 8px;
         gridline-color: #D8E3EF;
         font-size: 10pt;
     }
     QTableWidget::item { padding: 8px; }
+    QTableWidget::item:selected {
+        background-color: #ADB5BD;
+        color: #212529;
+    }
     QHeaderView::section {
-        background-color: #174A7E;
-        color: white;
+        background-color: #6C757D;
+        color: #FFFFFF;
         padding: 10px;
         border: none;
         font-weight: bold;
